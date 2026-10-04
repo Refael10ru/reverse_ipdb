@@ -95,6 +95,9 @@ Only enable it on trusted networks (loopback, a private debug interface, an SSH
 tunnel), never on a public port. Leaving a `ripdb.set_trace()` enabled on an
 exposed port is equivalent to leaving a remote code-execution endpoint open.
 
+For how these modules stack into layers and which guarantee each one owns, see
+[docs/api-layers.md](docs/api-layers.md).
+
 ## Package layout
 
 ```
