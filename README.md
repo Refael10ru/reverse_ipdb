@@ -33,14 +33,16 @@ ripdb.set_trace()                          # host/port from DEBUG_HOST / DEBUG_P
 ripdb.set_trace(host="10.0.0.5", port=4444)  # or set them explicitly
 ```
 
+`set_trace()` drops into the **IPython** debugger by default. If you'd rather
+use the standard-library `pdb`, call `ripdb.set_trace_pdb()` instead.
+(`ripdb.set_trace_ipython()` is kept as an explicit alias of `set_trace()`.)
+
 Configuration resolves **argument → environment variable → default**:
 
 | Setting | Env var      | Default               |
 |---------|--------------|-----------------------|
 | host    | `DEBUG_HOST` | `host.docker.internal`|
 | port    | `DEBUG_PORT` | `4444`                |
-
-For the IPython debugger, use `ripdb.set_trace_ipython()`.
 
 **On your machine**, catch the session. Either use the bundled listener:
 
@@ -102,7 +104,7 @@ For how these modules stack into layers and which guarantee each one owns, see
 
 ```
 ripdb/
-  __init__.py    public API re-exports (set_trace, set_trace_ipython)
+  __init__.py    public API re-exports (set_trace, set_trace_pdb, set_trace_ipython)
   api.py         the entry points
   client.py      target side: resolve host/port, dial out, single-shell lock
   debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin

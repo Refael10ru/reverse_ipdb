@@ -38,12 +38,14 @@ listener drives it from the other end.
 
 The only surface callers touch.
 
-- `set_trace(*, host=None, port=None, frame=None)`
-- `set_trace_ipython(*, host=None, port=None, frame=None)`
+- `set_trace(*, host=None, port=None, frame=None)` — **IPython** debugger (the default)
+- `set_trace_pdb(*, host=None, port=None, frame=None)` — stdlib `pdb`
+- `set_trace_ipython` — explicit alias of `set_trace`
 
-**Responsibility:** be the entry point and nothing more. It asks Layer 2 for a
-connection; if there is none, it returns immediately (the no-op / fail-open
-contract). Otherwise it hands the connection to Layer 3 and starts the trace.
+**Responsibility:** be the entry point and nothing more. The `_launch` helper
+picks the debugger class (Layer 3) and asks Layer 2 for a connection; if there
+is none, it returns immediately (the no-op / fail-open contract). Otherwise it
+hands the connection to Layer 3 and starts the trace.
 It holds no sockets, no configuration logic, and no debugger behaviour of its
 own — so the public contract stays stable even if the layers beneath change.
 
