@@ -1,0 +1,62 @@
+# Examples
+
+Runnable scripts for trying `ripdb` locally. Each one talks to a listener on
+`127.0.0.1:4444` by default (override with `DEBUG_HOST` / `DEBUG_PORT`).
+
+**Every example needs a listener running first**, in a separate terminal:
+
+```sh
+uv run ripdb-serve          # one session
+uv run ripdb-serve --keep   # keep listening across detaches (for daemon_loop)
+```
+
+Then, in another terminal, run an example. If no listener is running, the
+breakpoints are no-ops and the scripts simply print their results.
+
+| Example          | Shows                                                        | Run                                  |
+|------------------|--------------------------------------------------------------|--------------------------------------|
+| `basic.py`       | a single breakpoint; inspect locals, then detach             | `uv run python examples/basic.py`       |
+| `threads.py`     | the single-shell lock — one shell, other threads pass through | `uv run python examples/threads.py`     |
+| `daemon_loop.py` | attach / detach / re-attach to a long-running process (use `--keep`) | `uv run python examples/daemon_loop.py` |
+
+## A full walkthrough (basic.py)
+
+Terminal 1:
+
+```sh
+uv run ripdb-serve
+# *** ripdb listening on 0.0.0.0:4444 (one-shot) — Ctrl-C to quit
+```
+
+Terminal 2:
+
+```sh
+uv run python examples/basic.py
+```
+
+Terminal 1 now shows a banner and an `ipdb>` prompt. Try:
+
+```
+ipdb> p total
+16.5
+ipdb> pp order
+[{'name': 'widget', 'price': 2.5, 'qty': 3},
+ {'name': 'gadget', 'price': 9.0, 'qty': 1}]
+ipdb> detach
+```
+
+Back in terminal 2 the program finishes: `total: 16.5`.
+
+## The container case
+
+The library default host is `host.docker.internal`, so from inside a
+container you usually don't set a host at all — just point the port at your
+listener and run your own code:
+
+```sh
+# on your host
+uv run ripdb-serve --port 4444
+
+# inside the container (your app calls ripdb.set_trace())
+DEBUG_PORT=4444 python your_app.py
+```

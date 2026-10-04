@@ -17,10 +17,17 @@ If nobody is listening, `set_trace()` is a **no-op** and the program runs on unt
 
 ## Install
 
+This project is managed with [uv](https://docs.astral.sh/uv/):
+
 ```sh
-pip install -e .          # from this repo
-pip install -e ".[dev]"   # plus pytest / ruff / mypy for development
+uv sync                   # create the venv and install deps (incl. dev tools)
+uv run ripdb-serve        # run the listener
+uv run python -m ripdb ...# or run anything inside the environment
 ```
+
+Prefer plain pip? `pip install -e .` still works (the dev tools live in the
+`dev` dependency group: `uv sync` installs them, or `pip install pytest ruff
+mypy`).
 
 ## Use
 
@@ -47,9 +54,10 @@ Configuration resolves **argument → environment variable → default**:
 **On your machine**, catch the session. Either use the bundled listener:
 
 ```sh
-python -m ripdb.serve            # one session, then exit
-python -m ripdb.serve --keep     # keep listening after each detach
-ripdb-serve --port 4444          # same thing, console script
+uv run ripdb-serve               # one session, then exit
+uv run ripdb-serve --keep        # keep listening after each detach
+uv run ripdb-serve --port 4444   # pick the port
+# (or: python -m ripdb.serve, once the package is installed)
 ```
 
 …or a plain socket tool, no install required:
@@ -86,8 +94,8 @@ This is deliberate: a stray `q` over a flaky debugging link should never raise
 - **No surprises in the target.** It doesn't hijack the program's Ctrl-C handler
   (`nosigint`) and doesn't read a stray `~/.pdbrc` from inside the container
   (`readrc=False`).
-- **Small surface.** The only runtime dependency is IPython (for the
-  `set_trace_ipython()` flavour); everything else is stdlib.
+- **Small surface.** IPython (the default debugger) is the only runtime
+  dependency; everything else is stdlib.
 
 ## Security
 
@@ -110,12 +118,21 @@ ripdb/
   debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin
   transport.py   SocketIO: file-like socket wrapper that never raises into the program
   serve.py       the catcher: python -m ripdb.serve
+examples/        runnable scripts for trying it locally (see examples/README.md)
 tests/           pytest suite (unit + end-to-end over a real socket)
 ```
+
+## Examples
+
+See [examples/](examples/) for runnable scripts — a basic breakpoint, the
+single-shell lock across threads, and attach/detach against a long-running
+daemon. Start a listener (`uv run ripdb-serve`) then, e.g., `uv run python
+examples/basic.py`.
 
 ## Tests
 
 ```sh
-pip install -e ".[dev]"
-python -m pytest
+uv run pytest          # tests
+uv run ruff check .    # lint
+uv run mypy            # type-check
 ```
