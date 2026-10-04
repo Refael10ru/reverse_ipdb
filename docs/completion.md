@@ -4,6 +4,31 @@
 trade-off rather than a missing feature. This page explains why, and how to
 get completion when you need it.
 
+## Copy-paste: madbg in 30 seconds
+
+```sh
+# your machine (and the target, if separate): install it
+pip install madbg          # or: uv pip install madbg
+```
+
+```python
+# in the target process — break here, serving on 0.0.0.0:3513
+import madbg; madbg.set_trace(ip="0.0.0.0", port=3513)
+```
+
+```sh
+# on your machine — connect in and get a full IPython shell with completion
+madbg connect <target-host> 3513
+```
+
+Outbound-only container? Add an SSH reverse tunnel (see
+[below](#madbg-from-an-outbound-only-container-ssh-reverse-tunnel)):
+
+```sh
+# from inside the container, then `madbg connect localhost 3513` on your machine
+ssh -N -R 3513:localhost:3513 you@your-machine
+```
+
 ## Why ripdb has no completion
 
 Completion needs two things in the same place: the **keystrokes** (your TAB
