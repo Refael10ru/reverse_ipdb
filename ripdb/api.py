@@ -15,7 +15,7 @@ immediately, which is why the lock cannot be released here.
 import sys
 
 from .client import connect
-from .debugger import ReversePdb, ipython_class
+from .debugger import ReverseIPdb, ReversePdb
 
 
 def set_trace(*, host=None, port=None, frame=None):
@@ -30,12 +30,8 @@ def set_trace(*, host=None, port=None, frame=None):
 
 
 def set_trace_ipython(*, host=None, port=None, frame=None):
-    """Like set_trace, but drops into IPython's debugger when available."""
+    """Like set_trace, but drops into IPython's debugger."""
     io = connect(host, port)
     if io is None:
         return
-    cls = ipython_class()
-    if cls is None:
-        io.write("*** IPython not installed in this process, falling back to pdb\n")
-        cls = ReversePdb
-    cls(io).set_trace(frame or sys._getframe(1))
+    ReverseIPdb(io).set_trace(frame or sys._getframe(1))

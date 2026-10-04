@@ -15,14 +15,32 @@ classifiers = [
     "Topic :: Software Development :: Debuggers",
     "Intended Audience :: Developers",
 ]
-dependencies = []
+dependencies = ["ipython"]
 
 [project.optional-dependencies]
-ipython = ["ipython"]
-dev = ["pytest"]
+dev = ["pytest", "ruff", "mypy"]
 
 [project.scripts]
 ripdb-serve = "ripdb.serve:main"
 
 [tool.setuptools.packages.find]
 include = ["ripdb*"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["ripdb"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = false
+
+# IPython is an optional dependency and ships no type stubs.
+[[tool.mypy.overrides]]
+module = "IPython.*"
+ignore_missing_imports = true

@@ -18,8 +18,8 @@ If nobody is listening, `set_trace()` is a **no-op** and the program runs on unt
 ## Install
 
 ```sh
-pip install -e .            # from this repo
-pip install -e ".[ipython]" # optional: IPython-flavoured shell
+pip install -e .          # from this repo
+pip install -e ".[dev]"   # plus pytest / ruff / mypy for development
 ```
 
 ## Use
@@ -40,8 +40,7 @@ Configuration resolves **argument → environment variable → default**:
 | host    | `DEBUG_HOST` | `host.docker.internal`|
 | port    | `DEBUG_PORT` | `4444`                |
 
-For the IPython debugger, use `ripdb.set_trace_ipython()` (falls back to plain pdb
-if IPython isn't installed in that process).
+For the IPython debugger, use `ripdb.set_trace_ipython()`.
 
 **On your machine**, catch the session. Either use the bundled listener:
 
@@ -85,7 +84,8 @@ This is deliberate: a stray `q` over a flaky debugging link should never raise
 - **No surprises in the target.** It doesn't hijack the program's Ctrl-C handler
   (`nosigint`) and doesn't read a stray `~/.pdbrc` from inside the container
   (`readrc=False`).
-- **Stdlib only.** No runtime dependencies; IPython is an optional extra.
+- **Small surface.** The only runtime dependency is IPython (for the
+  `set_trace_ipython()` flavour); everything else is stdlib.
 
 ## Security
 
@@ -102,7 +102,7 @@ ripdb/
   __init__.py    public API re-exports (set_trace, set_trace_ipython)
   api.py         the entry points
   client.py      target side: resolve host/port, dial out, single-shell lock
-  debugger.py    ReversePdb + detach-on-quit mixin (+ lazy IPython flavour)
+  debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin
   transport.py   SocketIO: file-like socket wrapper that never raises into the program
   serve.py       the catcher: python -m ripdb.serve
 tests/           pytest suite (unit + end-to-end over a real socket)

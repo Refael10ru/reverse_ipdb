@@ -8,6 +8,8 @@ methods win over the debugger's own.
 
 import pdb
 
+from IPython.core.debugger import Pdb as IPdb
+
 
 class DetachMixin:
     """Mixin giving any pdb-derived debugger a clean detach.
@@ -36,17 +38,5 @@ class ReversePdb(DetachMixin, pdb.Pdb):
     """Standard-library pdb, talking over a socket, detaching on quit."""
 
 
-def ipython_class():
-    """Return a ReverseIPdb class, or None if IPython isn't importable.
-
-    Built lazily so IPython stays an optional dependency.
-    """
-    try:
-        from IPython.core.debugger import Pdb as IPdb
-    except ImportError:
-        return None
-
-    class ReverseIPdb(DetachMixin, IPdb):
-        pass
-
-    return ReverseIPdb
+class ReverseIPdb(DetachMixin, IPdb):
+    """IPython's debugger, talking over a socket, detaching on quit."""

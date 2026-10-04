@@ -5,6 +5,8 @@ into the program being debugged. Writes to a broken socket are dropped and
 reads return EOF, which pdb interprets as ``do_EOF`` and detaches cleanly.
 """
 
+import contextlib
+
 
 class SocketIO:
     """A file-like object over a socket.
@@ -52,13 +54,9 @@ class SocketIO:
     def close(self):
         self.dead = True
         for obj in (self._f, self._sock):
-            try:
+            with contextlib.suppress(OSError):
                 obj.close()
-            except OSError:
-                pass
         if self._on_close is not None:
             cb, self._on_close = self._on_close, None
-            try:
+            with contextlib.suppress(Exception):
                 cb()
-            except Exception:
-                pass

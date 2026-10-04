@@ -1,5 +1,6 @@
 """Tests for target-side connect logic: resolution, fail-open, shell lock."""
 
+import contextlib
 import socket
 import threading
 
@@ -92,7 +93,5 @@ def _reset_lock():
     # Guard against a leaked lock from a failed assertion in another test.
     yield
     if client._shell_lock.locked():
-        try:
+        with contextlib.suppress(RuntimeError):
             client._shell_lock.release()
-        except RuntimeError:
-            pass

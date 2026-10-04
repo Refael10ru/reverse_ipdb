@@ -5,7 +5,6 @@ import subprocess
 import sys
 import textwrap
 
-
 TARGET = textwrap.dedent(
     """
     import ripdb

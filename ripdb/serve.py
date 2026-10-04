@@ -13,14 +13,13 @@ session detaches, which pairs with the single-shell behaviour in the lib.
 """
 
 import argparse
+import contextlib
 import selectors
 import socket
 import sys
 
-try:
+with contextlib.suppress(ImportError):  # readline is absent on some platforms
     import readline  # noqa: F401  (import enables line editing on sys.stdin)
-except ImportError:  # pragma: no cover - readline absent on some platforms
-    pass
 
 
 def _pump(conn):
