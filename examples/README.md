@@ -18,6 +18,7 @@ breakpoints are no-ops and the scripts simply print their results.
 | `basic.py`       | a single breakpoint; inspect locals, then detach             | `uv run python examples/basic.py`       |
 | `threads.py`     | the single-shell lock — one shell, other threads pass through | `uv run python examples/threads.py`     |
 | `daemon_loop.py` | attach / detach / re-attach to a long-running process (use `--keep`) | `uv run python examples/daemon_loop.py` |
+| `madbg_example.py` | **tab-completion** via [madbg](https://github.com/kmaork/madbg) (forward model; separate tool) | `uv run --with madbg python examples/madbg_example.py` |
 
 ## A full walkthrough (basic.py)
 
