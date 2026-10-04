@@ -44,6 +44,14 @@ ripdb.set_trace(host="10.0.0.5", port=4444)  # or set them explicitly
 use the standard-library `pdb`, call `ripdb.set_trace_pdb()` instead.
 (`ripdb.set_trace_ipython()` is kept as an explicit alias of `set_trace()`.)
 
+> **No tab-completion?** That's by design — see
+> [docs/completion.md](docs/completion.md). In short: completion needs a TTY
+> on the target, which the reverse/dial-out model doesn't provide. When you
+> want completion, history and the full IPython feel, use
+> [madbg](https://github.com/kmaork/madbg) (even from an outbound-only
+> container, via an SSH reverse tunnel). Reach for `ripdb` when you want
+> minimal and dial-out.
+
 Configuration resolves **argument → environment variable → default**:
 
 | Setting | Env var      | Default               |
