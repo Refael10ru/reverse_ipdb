@@ -14,9 +14,9 @@ session detaches, which pairs with the single-shell behaviour in the lib.
 
 import argparse
 import contextlib
-import selectors
 import socket
 import sys
+import threading
 
 with contextlib.suppress(ImportError):  # readline is absent on some platforms
     import readline  # noqa: F401  (import enables line editing on sys.stdin)
@@ -25,47 +25,22 @@ with contextlib.suppress(ImportError):  # readline is absent on some platforms
 def _pump(conn):
     """Shuttle bytes between the local terminal and the connected session.
 
-    Returns when either side closes. stdin -> socket and socket -> stdout run
-    through a selector so a keypress and incoming output never block each
-    other.
+    A background thread copies the socket to stdout (so output and the banner
+    stream in on their own), while the foreground copies stdin to the socket.
+    Local EOF (Ctrl-D) sends ``detach`` so the debugged program continues.
     """
-    conn.setblocking(False)
-    sel = selectors.DefaultSelector()
-    sel.register(conn, selectors.EVENT_READ, "sock")
-    stdin_fileno = sys.stdin.fileno()
-    sel.register(stdin_fileno, selectors.EVENT_READ, "stdin")
-    stdin_open = True
+    def to_stdout():
+        while data := conn.recv(4096):
+            sys.stdout.write(data.decode("utf-8", "replace"))
+            sys.stdout.flush()
 
-    try:
-        while True:
-            for key, _ in sel.select():
-                if key.data == "sock":
-                    try:
-                        data = conn.recv(4096)
-                    except BlockingIOError:
-                        continue
-                    if not data:
-                        return  # remote detached / closed
-                    sys.stdout.write(data.decode("utf-8", "replace"))
-                    sys.stdout.flush()
-                elif stdin_open:  # stdin
-                    line = sys.stdin.readline()
-                    if not line:  # local EOF (Ctrl-D) -> detach, then drain
-                        try:
-                            conn.sendall(b"detach\n")
-                        except OSError:
-                            return
-                        # Stop watching stdin but keep draining the socket so
-                        # the remote's final output isn't lost.
-                        sel.unregister(stdin_fileno)
-                        stdin_open = False
-                        continue
-                    try:
-                        conn.sendall(line.encode("utf-8"))
-                    except OSError:
-                        return
-    finally:
-        sel.close()
+    reader = threading.Thread(target=to_stdout, daemon=True)
+    reader.start()
+    with contextlib.suppress(OSError):
+        for line in sys.stdin:
+            conn.sendall(line.encode("utf-8"))
+        conn.sendall(b"detach\n")  # local EOF -> let the program run on
+    reader.join()  # drain any final output before the session ends
 
 
 def serve(host="0.0.0.0", port=4444, keep=False):
