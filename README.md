@@ -62,18 +62,48 @@ Configuration resolves **argument → environment variable → default**:
 **On your machine**, catch the session. Either use the bundled listener:
 
 ```sh
-uv run ripdb-serve               # one session, then exit
-uv run ripdb-serve --keep        # keep listening after each detach
+uv run ripdb-serve               # serve the first container, then exit
+uv run ripdb-serve --keep        # fan-in: detach one, drop into the next waiting
 uv run ripdb-serve --port 4444   # pick the port
 # (or: python -m ripdb.serve, once the package is installed)
 ```
 
-…or a plain socket tool, no install required:
+…or a plain socket tool, no install required (single session only — no roster):
 
 ```sh
 socat readline TCP-LISTEN:4444,reuseaddr
 # or:  nc -l 4444
 ```
+
+### Many containers (fan-in)
+
+This is what the reverse model is *for*. When your code runs across many
+containers, point them all at the **one** listener and run it with `--keep`:
+
+```sh
+# every container (e.g. in its entrypoint / compose env)
+DEBUG_HOST=<your-machine> DEBUG_PORT=4444   # ripdb.set_trace() reads these
+
+# you, once
+uv run ripdb-serve --keep
+```
+
+The listener accepts **every** container that hits a breakpoint right away —
+none is ever refused — and each stays paused at its `set_trace` until it's
+your turn. You get a live roster and walk them one at a time:
+
+```
+*** ripdb listening on 0.0.0.0:4444 (keep-alive) — Ctrl-C to quit
+*** queued: web-7f9c pid=12 thread=MainThread  (1 waiting)
+*** queued: worker-3a1 pid=9 thread=Thread-2    (2 waiting)
+*** attached: web-7f9c pid=12 thread=MainThread  (1 still waiting)
+   … debug web-7f9c, then `detach` …
+*** detached: web-7f9c pid=12 thread=MainThread
+*** attached: worker-3a1 pid=9 thread=Thread-2
+```
+
+You never connect *to* the containers — they come to you. (This is exactly
+what forward debuggers like madbg can't do: there you'd chase N endpoints.)
 
 The bundled `serve` adds local line editing/history (readline), a parsed banner
 showing which host/pid/thread connected, and `--keep` to re-listen automatically.
@@ -125,7 +155,7 @@ ripdb/
   client.py      target side: resolve host/port, dial out, single-shell lock
   debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin
   transport.py   SocketIO: file-like socket wrapper that never raises into the program
-  serve.py       the catcher: python -m ripdb.serve
+  serve.py       the fan-in listener: python -m ripdb.serve
 examples/        runnable scripts for trying it locally (see examples/README.md)
 tests/           pytest suite (unit + end-to-end over a real socket)
 ```

@@ -96,12 +96,14 @@ This is the lowest layer and the only one that touches the raw socket object.
 ## The peer — Listener (`serve.py`)
 
 Not part of the target-side stack; it runs on **your** machine as the other
-end of the socket (`python -m ripdb.serve`, or a plain `socat`/`nc`). It
-accepts one session at a time and bridges your terminal to the socket
-(readline editing, banner, `--keep` reconnect, draining the socket on local
-EOF). It is documented alongside the layers because it speaks the same wire
-protocol, but it depends on none of the four layers above and ships no shared
-code with them.
+end of the socket (`python -m ripdb.serve`, or a plain `socat`/`nc`). A
+background acceptor thread fans in **every** connecting container at once —
+reading each one's banner and queueing it so none is refused — while the
+foreground serves them one at a time with a live roster (`--keep` to advance
+into the next instead of exiting). Each session bridges your terminal to the
+socket (readline editing, draining the socket on local EOF). It is documented
+alongside the layers because it speaks the same wire protocol, but it depends
+on none of the four layers above and ships no shared code with them.
 
 ## Why these boundaries
 

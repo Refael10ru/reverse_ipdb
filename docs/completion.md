@@ -116,12 +116,15 @@ with full completion.
 
 ## Which to use
 
-- **Reach the target's port (or can open an SSH tunnel), and want
-  completion / history / a real IPython feel?** Use **madbg**.
-- **Strictly outbound-only, no SSH, and you just need to poke at state
-  quickly with the smallest possible footprint?** Use **ripdb** — you give up
-  completion, but it's a few hundred lines of stdlib that dials straight out
-  to a `ripdb-serve` (or `socat`/`nc`) listener.
+- **Code spread across many containers you can't all connect to?** Use
+  **ripdb**. Every container dials out to one `ripdb-serve --keep`, which fans
+  them in — none is refused, each pauses until its turn, and you walk them
+  from a single roster (see the README's "Many containers" section). madbg is
+  forward (you connect *in* to each process), so here you'd be chasing N
+  endpoints — the exact thing ripdb exists to avoid.
+- **One reachable target (or an SSH tunnel), and you want completion /
+  history / a real IPython feel?** Use **madbg**.
 
-They're complementary: reach for ripdb when you want minimal and dial-out,
-reach for madbg when you want the full debugger experience.
+They're complementary: reach for **ripdb** when debugging *out* of many
+containers into one place, reach for **madbg** when you want the full
+single-target debugger experience.

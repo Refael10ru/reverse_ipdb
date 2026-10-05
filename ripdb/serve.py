@@ -1,25 +1,51 @@
-"""The catcher: a listener that accepts reverse-pdb sessions.
+"""The catcher: a listener that fans in reverse-pdb sessions.
 
-Equivalent to ``socat readline TCP-LISTEN:4444,reuseaddr`` but with local
-line editing/history (via readline), a parsed banner, and an optional
-reconnect loop.
+Built for code spread across many containers: each one dials OUT to this one
+listener. Incoming containers are accepted immediately (so none is ever
+refused — each stays paused at its ``set_trace``) and queued; you walk them
+one at a time, with a live roster of who is waiting.
 
 Usage::
 
     python -m ripdb.serve [--host HOST] [--port PORT] [--keep]
 
-Handles one session at a time. With ``--keep`` it re-listens after each
-session detaches, which pairs with the single-shell behaviour in the lib.
+Without ``--keep`` the listener serves the first container and exits. With
+``--keep`` it keeps serving: detach from one and you drop straight into the
+next one waiting.
 """
 
 import argparse
 import contextlib
+import queue
 import socket
 import sys
 import threading
 
 with contextlib.suppress(ImportError):  # readline is absent on some platforms
     import readline  # noqa: F401  (import enables line editing on sys.stdin)
+
+
+def _note(msg):
+    """Print a roster line to stderr, flushed so it shows up live."""
+    print(f"*** {msg}", file=sys.stderr, flush=True)
+
+
+def _read_banner(conn):
+    """Read the target's first line (its id banner) one byte at a time.
+
+    Byte-at-a-time so we never over-read into the debugger output that
+    follows — those bytes must stay in the socket for _pump to stream later.
+    """
+    buf = bytearray()
+    while not buf.endswith(b"\n"):
+        try:
+            chunk = conn.recv(1)
+        except OSError:
+            break
+        if not chunk:
+            break
+        buf += chunk
+    return buf.decode("utf-8", "replace").strip().lstrip("* ").strip()
 
 
 def _pump(conn):
@@ -44,35 +70,73 @@ def _pump(conn):
 
 
 def serve(host="0.0.0.0", port=4444, keep=False):
-    """Listen on host:port and hand each incoming session to the terminal."""
+    """Fan in reverse-pdb sessions: accept all, serve one at a time.
+
+    A background thread accepts every incoming container (reading its banner
+    and queueing it, so nothing is refused and each stays paused). The
+    foreground pops them in arrival order and drives one at a time.
+    """
+    sessions = queue.Queue()
+    stopping = threading.Event()
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, port))
-        listener.listen(1)
-        print(f"*** ripdb listening on {host}:{port} "
-              f"({'keep-alive' if keep else 'one-shot'}) — Ctrl-C to quit",
-              file=sys.stderr)
-        while True:
-            conn, addr = listener.accept()
-            print(f"*** session from {addr[0]}:{addr[1]}", file=sys.stderr)
-            with conn:
-                _pump(conn)
-            print("*** session ended", file=sys.stderr)
-            if not keep:
-                return
+        listener.listen(128)  # roomy backlog so a burst of containers isn't refused
+        _note(f"ripdb listening on {host}:{port} "
+              f"({'keep-alive' if keep else 'one-shot'}) — Ctrl-C to quit")
+
+        def acceptor():
+            while not stopping.is_set():
+                try:
+                    conn, addr = listener.accept()
+                except OSError:
+                    return  # listener closed -> we're shutting down
+                ident = _read_banner(conn) or f"{addr[0]}:{addr[1]}"
+                if stopping.is_set():
+                    conn.close()
+                    return
+                sessions.put((conn, ident))
+                _note(f"queued: {ident}  ({sessions.qsize()} waiting)")
+
+        threading.Thread(target=acceptor, daemon=True).start()
+
+        try:
+            while True:
+                conn, ident = sessions.get()
+                waiting = sessions.qsize()
+                suffix = f"  ({waiting} still waiting)" if waiting else ""
+                _note(f"attached: {ident}{suffix}")
+                with conn:
+                    _pump(conn)
+                _note(f"detached: {ident}")
+                if not keep:
+                    return
+        finally:
+            stopping.set()
+            with contextlib.suppress(OSError):
+                listener.close()  # unblock the acceptor's accept()
+            while True:
+                try:
+                    pending, _ = sessions.get_nowait()
+                except queue.Empty:
+                    break
+                with contextlib.suppress(OSError):
+                    pending.close()
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="ripdb.serve",
-        description="Catch reverse-connecting pdb sessions.",
+        description="Fan in reverse-connecting pdb sessions from many containers.",
     )
     parser.add_argument("--host", default="0.0.0.0",
                         help="interface to bind (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=4444,
                         help="port to listen on (default: 4444)")
     parser.add_argument("--keep", action="store_true",
-                        help="keep listening for a new session after each detach")
+                        help="after a detach, drop into the next waiting container "
+                             "instead of exiting")
     args = parser.parse_args(argv)
     try:
         serve(args.host, args.port, args.keep)
