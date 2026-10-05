@@ -7,11 +7,12 @@ import time
 from ripdb import serve as serve_mod
 
 
-def test_read_banner_stops_at_newline_without_overreading():
+def test_read_banner_parses_mode_without_overreading():
     a, b = socket.socketpair()
     # Banner line followed immediately by debugger output on the same stream.
-    a.sendall(b"host pid=1 thread=MainThread\n> frame\n(Pdb) ")
-    ident = serve_mod._read_banner(b)
+    a.sendall(b"*** ripdb/pty host pid=1 thread=MainThread\n> frame\n(Pdb) ")
+    mode, ident = serve_mod._read_banner(b)
+    assert mode == "pty"
     assert ident == "host pid=1 thread=MainThread"
     # The bytes after the banner must still be readable (not consumed).
     rest = b.recv(4096)
@@ -20,10 +21,20 @@ def test_read_banner_stops_at_newline_without_overreading():
     b.close()
 
 
+def test_read_banner_defaults_to_line_without_prefix():
+    a, b = socket.socketpair()
+    a.sendall(b"some-host pid=9\n")
+    mode, ident = serve_mod._read_banner(b)
+    assert mode == "line"
+    assert ident == "some-host pid=9"
+    a.close()
+    b.close()
+
+
 def test_read_banner_empty_on_immediate_close():
     a, b = socket.socketpair()
     a.close()
-    assert serve_mod._read_banner(b) == ""
+    assert serve_mod._read_banner(b) == ("line", "")
     b.close()
 
 

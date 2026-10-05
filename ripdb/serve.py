@@ -16,6 +16,7 @@ next one waiting.
 
 import argparse
 import contextlib
+import os
 import queue
 import socket
 import sys
@@ -31,10 +32,12 @@ def _note(msg):
 
 
 def _read_banner(conn):
-    """Read the target's first line (its id banner) one byte at a time.
+    """Read the target's first line and parse ``(mode, ident)``.
 
     Byte-at-a-time so we never over-read into the debugger output that
-    follows — those bytes must stay in the socket for _pump to stream later.
+    follows — those bytes must stay in the socket for the pump to stream.
+    The line looks like ``*** ripdb/<mode> <host> pid=.. thread=..``; a plain
+    socat/nc target without the prefix is treated as line mode.
     """
     buf = bytearray()
     while not buf.endswith(b"\n"):
@@ -45,15 +48,21 @@ def _read_banner(conn):
         if not chunk:
             break
         buf += chunk
-    return buf.decode("utf-8", "replace").strip().lstrip("* ").strip()
+    text = buf.decode("utf-8", "replace").strip().lstrip("* ").strip()
+    mode, ident = "line", text
+    if text.startswith("ripdb/"):
+        head, _, rest = text.partition(" ")
+        mode = head.split("/", 1)[1] or "line"
+        ident = rest.strip()
+    return mode, ident
 
 
 def _pump(conn):
-    """Shuttle bytes between the local terminal and the connected session.
+    """Line-based bridge (plain pdb): socket -> stdout, stdin -> socket.
 
-    A background thread copies the socket to stdout (so output and the banner
-    stream in on their own), while the foreground copies stdin to the socket.
-    Local EOF (Ctrl-D) sends ``detach`` so the debugged program continues.
+    A background thread copies the socket to stdout, while the foreground
+    copies stdin to the socket. Local EOF (Ctrl-D) sends ``detach`` so the
+    debugged program continues.
     """
     def to_stdout():
         while data := conn.recv(4096):
@@ -67,6 +76,59 @@ def _pump(conn):
             conn.sendall(line.encode("utf-8"))
         conn.sendall(b"detach\n")  # local EOF -> let the program run on
     reader.join()  # drain any final output before the session ends
+
+
+def _terminal_size():
+    with contextlib.suppress(OSError, ValueError):
+        size = os.get_terminal_size(sys.stdin.fileno())
+        return size.columns, size.lines
+    return 80, 24
+
+
+def _pump_raw(conn):
+    """Raw pass-through bridge (IPython/pty): a transparent terminal.
+
+    Sends our terminal size, puts the local tty in raw mode, and shuttles
+    bytes both ways via select — so keystrokes (TAB included) reach the
+    target's prompt_toolkit and its vt100 rendering comes straight back.
+    Returns the instant the socket closes (clean detach, no extra keypress).
+    """
+    try:
+        import select
+        import termios
+        import tty
+    except ImportError:  # pragma: no cover - non-POSIX: degrade to line mode
+        _note("raw mode unavailable on this platform; falling back to line mode")
+        _pump(conn)
+        return
+
+    cols, rows = _terminal_size()
+    with contextlib.suppress(OSError):
+        conn.sendall(f"{cols} {rows}\n".encode())
+
+    fd = sys.stdin.fileno()
+    saved = None
+    with contextlib.suppress(OSError, termios.error):
+        saved = termios.tcgetattr(fd)
+        tty.setraw(fd)
+    try:
+        while True:
+            readable, _, _ = select.select([fd, conn], [], [])
+            if conn in readable:
+                data = conn.recv(65536)
+                if not data:
+                    break  # remote detached/closed
+                os.write(sys.stdout.fileno(), data)
+            if fd in readable:
+                data = os.read(fd, 65536)
+                if not data:
+                    break
+                with contextlib.suppress(OSError):
+                    conn.sendall(data)
+    finally:
+        if saved is not None:
+            with contextlib.suppress(OSError, termios.error):
+                termios.tcsetattr(fd, termios.TCSADRAIN, saved)
 
 
 def serve(host="0.0.0.0", port=4444, keep=False):
@@ -92,23 +154,24 @@ def serve(host="0.0.0.0", port=4444, keep=False):
                     conn, addr = listener.accept()
                 except OSError:
                     return  # listener closed -> we're shutting down
-                ident = _read_banner(conn) or f"{addr[0]}:{addr[1]}"
+                mode, ident = _read_banner(conn)
+                ident = ident or f"{addr[0]}:{addr[1]}"
                 if stopping.is_set():
                     conn.close()
                     return
-                sessions.put((conn, ident))
+                sessions.put((conn, ident, mode))
                 _note(f"queued: {ident}  ({sessions.qsize()} waiting)")
 
         threading.Thread(target=acceptor, daemon=True).start()
 
         try:
             while True:
-                conn, ident = sessions.get()
+                conn, ident, mode = sessions.get()
                 waiting = sessions.qsize()
                 suffix = f"  ({waiting} still waiting)" if waiting else ""
                 _note(f"attached: {ident}{suffix}")
                 with conn:
-                    _pump(conn)
+                    (_pump_raw if mode == "pty" else _pump)(conn)
                 _note(f"detached: {ident}")
                 if not keep:
                     return
@@ -118,7 +181,7 @@ def serve(host="0.0.0.0", port=4444, keep=False):
                 listener.close()  # unblock the acceptor's accept()
             while True:
                 try:
-                    pending, _ = sessions.get_nowait()
+                    pending = sessions.get_nowait()[0]
                 except queue.Empty:
                     break
                 with contextlib.suppress(OSError):

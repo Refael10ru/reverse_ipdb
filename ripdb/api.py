@@ -3,46 +3,43 @@
 Call these directly from the code you want to pause::
 
     import ripdb
-    ripdb.set_trace()          # IPython debugger (the default)
-    ripdb.set_trace_pdb()      # stdlib pdb, if you'd rather not use IPython
+    ripdb.set_trace()          # IPython over a pty -> tab/dot-completion
+    ripdb.set_trace_pdb()      # stdlib pdb, line-based, pure stdlib
 
 ``set_trace_ipython`` is kept as an explicit alias of ``set_trace``.
 
-Concurrency: the shell lock is acquired inside ``client.connect`` and held
-for the whole debugging session (released when the socket closes on detach),
-so the first thread to reach a breakpoint gets the shell and the rest pass
-straight through. ``Pdb.set_trace`` only installs the trace hook and returns
-immediately, which is why the lock cannot be released here.
+Imports of IPython / prompt_toolkit are deferred until a listener is actually
+reached, so a breakpoint with nobody listening stays a cheap no-op.
 """
 
+import os
 import sys
-
-from .client import connect
-from .debugger import ReverseIPdb, ReversePdb
-
-
-def _launch(cls, host, port, frame):
-    """Dial out and drop the caller's frame into the given debugger class.
-
-    No listener (or a shell already active elsewhere) -> no-op.
-    """
-    io = connect(host, port)
-    if io is None:
-        return
-    cls(io).set_trace(frame)
 
 
 def set_trace(*, host=None, port=None, frame=None):
-    """Pause here and hand an IPython debugger shell to a listener over TCP.
+    """Pause here and hand an IPython shell (with completion) to the listener.
 
-    IPython is the default flavour; use ``set_trace_pdb`` for the stdlib pdb.
+    IPython over a pseudo-terminal is the default; use ``set_trace_pdb`` for
+    the stdlib pdb. No listener (or a shell already active elsewhere) -> no-op.
+    On platforms without pty support (e.g. Windows) this falls back to the
+    line-based pdb automatically.
     """
-    _launch(ReverseIPdb, host, port, frame or sys._getframe(1))
+    frame = frame or sys._getframe(1)
+    if not hasattr(os, "openpty"):
+        set_trace_pdb(host=host, port=port, frame=frame)
+        return
+    from . import pty_bridge
+    pty_bridge.run(frame, host=host, port=port)
 
 
 def set_trace_pdb(*, host=None, port=None, frame=None):
-    """Like set_trace, but drops into the standard-library pdb."""
-    _launch(ReversePdb, host, port, frame or sys._getframe(1))
+    """Pause here with the standard-library pdb over a plain line socket."""
+    from .client import connect
+    from .debugger import ReversePdb
+    io = connect(host, port)
+    if io is None:
+        return
+    ReversePdb(io).set_trace(frame or sys._getframe(1))
 
 
 # IPython is the default, so this is simply an explicit alias of set_trace.

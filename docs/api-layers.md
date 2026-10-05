@@ -66,28 +66,32 @@ This is the layer that enforces the two headline guarantees — *no listener →
 no-op* and *one shell at a time* — and it does so without importing the
 debugger, so the policy is testable on its own.
 
-## Layer 3 — Debugger (`debugger.py`)
+## Layer 3 — Debugger (`debugger.py`, `pty_bridge.py`)
 
 The interactive behaviour, built on the stdlib/IPython debuggers.
 
-- `ReversePdb` (over `pdb.Pdb`) and `ReverseIPdb` (over IPython's `Pdb`).
+- `ReverseIPdb` (over IPython's `TerminalPdb`) is the default. `pty_bridge.py`
+  launches it on a **pseudo-terminal** so `prompt_toolkit` engages and
+  computes **tab/dot-completion** against the live frame; two pump threads
+  shuttle the pty master to/from the socket, and a teardown hook closes the
+  pty, shuts down the prompt thread, and releases the shell lock on detach.
+- `ReversePdb` (over `pdb.Pdb`) is the line-based fallback (`set_trace_pdb`,
+  or any non-POSIX target).
 - `DetachMixin` — redefines `q` / `quit` / `exit` / EOF to **detach and
-  continue** instead of raising `BdbQuit` into the program, and sets
+  continue** instead of raising `BdbQuit` into the program; both flavours set
   `nosigint=True` / `readrc=False` so the debugger neither hijacks the
   program's Ctrl-C handler nor reads a stray `~/.pdbrc` from the container.
 
-It receives a ready file-like object from Layer 4 and uses it as both stdin
-and stdout; it knows nothing about sockets, timeouts, or connection policy.
-
-## Layer 4 — Transport (`transport.py`)
+## Layer 4 — Transport (`transport.py` for line mode; the pty for IPython)
 
 The byte pipe between the debugger and the socket.
 
-- `SocketIO` — a file-like wrapper whose defining property is that a **dead
+- `SocketIO` — the line-mode wrapper whose defining property is that a **dead
   connection never raises into the debugged program**: writes are dropped,
-  reads return EOF (which the debugger reads as detach).
-- Fires an `on_close` hook so Layer 2 can release the shell lock exactly once
-  when the session ends.
+  reads return EOF (which the debugger reads as detach). Fires an `on_close`
+  hook so Layer 2 can release the shell lock exactly once.
+- For IPython the pty plays this role: `pty_bridge`'s pump is the byte pipe,
+  and its teardown is what releases the lock.
 
 This is the lowest layer and the only one that touches the raw socket object.
 
@@ -100,10 +104,12 @@ end of the socket (`python -m ripdb.serve`, or a plain `socat`/`nc`). A
 background acceptor thread fans in **every** connecting container at once —
 reading each one's banner and queueing it so none is refused — while the
 foreground serves them one at a time with a live roster (`--keep` to advance
-into the next instead of exiting). Each session bridges your terminal to the
-socket (readline editing, draining the socket on local EOF). It is documented
-alongside the layers because it speaks the same wire protocol, but it depends
-on none of the four layers above and ships no shared code with them.
+into the next instead of exiting). It reads each banner's mode: IPython/pty
+sessions get a raw-mode pass-through (terminal size sent, bytes forwarded via
+select, so completion and special keys work); line sessions get the simple
+stdin/stdout bridge. It is documented alongside the layers because it speaks
+the same wire protocol, but it depends on none of the layers above and ships
+no shared code with them.
 
 ## Why these boundaries
 

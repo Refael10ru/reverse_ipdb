@@ -10,7 +10,7 @@ TARGET = textwrap.dedent(
     import ripdb
     def work():
         secret = 42
-        ripdb.set_trace(host="127.0.0.1", port={port})
+        ripdb.set_trace_pdb(host="127.0.0.1", port={port})
         print("RESUMED", secret)
     work()
     """

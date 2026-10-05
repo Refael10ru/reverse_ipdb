@@ -44,13 +44,12 @@ ripdb.set_trace(host="10.0.0.5", port=4444)  # or set them explicitly
 use the standard-library `pdb`, call `ripdb.set_trace_pdb()` instead.
 (`ripdb.set_trace_ipython()` is kept as an explicit alias of `set_trace()`.)
 
-> **No tab-completion?** That's by design — see
-> [docs/completion.md](docs/completion.md). In short: completion needs a TTY
-> on the target, which the reverse/dial-out model doesn't provide. When you
-> want completion, history and the full IPython feel, use
-> [madbg](https://github.com/kmaork/madbg) (even from an outbound-only
-> container, via an SSH reverse tunnel). Reach for `ripdb` when you want
-> minimal and dial-out.
+You get **real tab/dot-completion**, history and colour: `set_trace()` runs
+IPython's debugger over a pseudo-terminal, so `order.<TAB>` completes against
+the live frame — all computed on the target and rendered to your terminal.
+Use the bundled `ripdb-serve` (or `socat …,raw,echo=0`) as the listener so
+your terminal is in raw mode. POSIX targets only; on other platforms it falls
+back to line-based pdb automatically. See [docs/completion.md](docs/completion.md).
 
 Configuration resolves **argument → environment variable → default**:
 
@@ -68,11 +67,12 @@ uv run ripdb-serve --port 4444   # pick the port
 # (or: python -m ripdb.serve, once the package is installed)
 ```
 
-…or a plain socket tool, no install required (single session only — no roster):
+…or a plain `socat` (single session, no roster) — use raw mode so completion
+and keys pass through:
 
 ```sh
-socat readline TCP-LISTEN:4444,reuseaddr
-# or:  nc -l 4444
+socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr
+# nc works too but mangles completion (line-buffered, local echo)
 ```
 
 ### Many containers (fan-in)
@@ -105,13 +105,16 @@ your turn. You get a live roster and walk them one at a time:
 You never connect *to* the containers — they come to you. (This is exactly
 what forward debuggers like madbg can't do: there you'd chase N endpoints.)
 
-The bundled `serve` adds local line editing/history (readline), a parsed banner
-showing which host/pid/thread connected, and `--keep` to re-listen automatically.
+The bundled `serve` identifies each container by its banner, keeps the fan-in
+roster, and — for IPython (pty) sessions — puts your terminal in raw mode so
+completion and special keys pass straight through.
 
 ## In the shell
 
-It's ordinary `pdb` — `p`, `n`, `s`, `c`, `bt`, `l`, evaluate expressions, etc.
-One difference: **quitting detaches instead of killing your program.**
+It's the IPython debugger — `p`, `n`, `s`, `c`, `bt`, `l`, evaluate
+expressions, **and Tab/dot-completion against the live frame** (`cfg.<TAB>`).
+One difference from a normal debugger: **quitting detaches instead of killing
+your program.**
 
 | Command             | Effect                                             |
 |---------------------|----------------------------------------------------|
@@ -132,7 +135,11 @@ This is deliberate: a stray `q` over a flaky debugging link should never raise
 - **No surprises in the target.** It doesn't hijack the program's Ctrl-C handler
   (`nosigint`) and doesn't read a stray `~/.pdbrc` from inside the container
   (`readrc=False`).
-- **Small surface.** IPython (the default debugger) is the only runtime
+- **Completion over the wire.** The IPython debugger runs on a pty so
+  prompt_toolkit engages; completion is computed on the target against the
+  live frame and rendered to your terminal. POSIX targets only — elsewhere
+  `set_trace()` falls back to line-based pdb.
+- **Small surface.** IPython (which brings prompt_toolkit) is the only runtime
   dependency; everything else is stdlib.
 
 ## Security
@@ -154,6 +161,7 @@ ripdb/
   api.py         the entry points
   client.py      target side: resolve host/port, dial out, single-shell lock
   debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin
+  pty_bridge.py  IPython-over-pty launcher so prompt_toolkit completion works
   transport.py   SocketIO: file-like socket wrapper that never raises into the program
   serve.py       the fan-in listener: python -m ripdb.serve
 examples/        runnable scripts for trying it locally (see examples/README.md)
