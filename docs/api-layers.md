@@ -1,7 +1,7 @@
 # API layers
 
-`ripdb` is organised as **four thin layers** on the target side, stacked so
-that each one depends only on the layer directly below it. A fifth component,
+`ripdb` is organised as **three thin layers** on the target side, stacked so
+that each one depends only on the layer directly below it. A fourth component,
 the listener, is the remote *peer* of the stack rather than another layer in
 it — it lives on your machine, at the far end of the socket.
 
@@ -15,21 +15,18 @@ it — it lives on your machine, at the far end of the socket.
  │        │                           │   resolve host/port, dial out,
  │        │                           │   fail-open, single-shell lock
  │        ▼                           │
- │ 3. Debugger        debugger.py     │   the pdb/IPython shell + detach
- │        │                           │   semantics (q/EOF -> continue)
- │        ▼                           │
- │ 4. Transport       transport.py    │   bytes on the wire; never raises
- │        │                           │   into the debugged program
+ │ 3. Debugger+pty    debugger.py     │   IPython on a pty; pumps bytes
+ │                    pty_bridge.py   │   to the socket; detach tears down
  └────────┼──────────────────────────┘
-          │  TCP (pdb protocol over a socket)      ┌────────────────────────┐
+          │  TCP (vt100 terminal over a socket)   ┌────────────────────────┐
           └───────────────────────────────────────│  Listener   serve.py   │
                                                    │  the peer: accepts the │
-                                                   │  session, bridges your │
-                                                   │  terminal to the socket│
+                                                   │  session, raw-bridges  │
+                                                   │  your terminal to it   │
                                                    └────────────────────────┘
 ```
 
-A breakpoint travels **down** the stack (1 → 4), crosses the socket, and the
+A breakpoint travels **down** the stack (1 → 3), crosses the socket, and the
 listener drives it from the other end.
 
 ---
@@ -38,16 +35,14 @@ listener drives it from the other end.
 
 The only surface callers touch.
 
-- `set_trace(*, host=None, port=None, frame=None)` — **IPython** debugger (the default)
-- `set_trace_pdb(*, host=None, port=None, frame=None)` — stdlib `pdb`
+- `set_trace(*, host=None, port=None, frame=None)` — the IPython debugger
 - `set_trace_ipython` — explicit alias of `set_trace`
 
-**Responsibility:** be the entry point and nothing more. The `_launch` helper
-picks the debugger class (Layer 3) and asks Layer 2 for a connection; if there
-is none, it returns immediately (the no-op / fail-open contract). Otherwise it
-hands the connection to Layer 3 and starts the trace.
-It holds no sockets, no configuration logic, and no debugger behaviour of its
-own — so the public contract stays stable even if the layers beneath change.
+**Responsibility:** be the entry point and nothing more. It grabs the caller's
+frame, guards non-POSIX (no `os.openpty` → no-op), and hands off to Layer 3
+(`pty_bridge.run`). It holds no sockets, no configuration logic, and no
+debugger behaviour of its own — so the public contract stays stable even if the
+layers beneath change.
 
 ## Layer 2 — Session / connection (`client.py`)
 
@@ -55,45 +50,37 @@ Decides **whether a debugging session should happen at all**, before any
 debugger exists.
 
 - `resolve_target()` — host/port precedence: **argument → env var → default**.
-- `connect()` — dials the listener with a short timeout and **fails open**
-  (returns `None`) when nobody is listening.
+- `dial()` — acquires the shell lock, then dials the listener with a short
+  timeout and **fails open** (returns `None`, releasing the lock) when nobody
+  is listening. Returns `(sock, release)` otherwise.
+- `banner()` — the `*** ripdb/pty …` identity line sent first.
 - The module-level **single-shell lock** — the first thread to reach a
   breakpoint wins the shell; concurrent arrivals get `None` and pass through.
-  The lock is held for the whole session and released via the transport's
-  close hook.
+  The lock is held for the whole session and released by `release()` when the
+  pty bridge tears down.
 
 This is the layer that enforces the two headline guarantees — *no listener →
 no-op* and *one shell at a time* — and it does so without importing the
 debugger, so the policy is testable on its own.
 
-## Layer 3 — Debugger (`debugger.py`, `pty_bridge.py`)
+## Layer 3 — Debugger + pty transport (`debugger.py`, `pty_bridge.py`)
 
-The interactive behaviour, built on the stdlib/IPython debuggers.
+The interactive behaviour, and the byte pipe that carries it.
 
-- `ReverseIPdb` (over IPython's `TerminalPdb`) is the default. `pty_bridge.py`
-  launches it on a **pseudo-terminal** so `prompt_toolkit` engages and
-  computes **tab/dot-completion** against the live frame; two pump threads
-  shuttle the pty master to/from the socket, and a teardown hook closes the
-  pty, shuts down the prompt thread, and releases the shell lock on detach.
-- `ReversePdb` (over `pdb.Pdb`) is the line-based fallback (`set_trace_pdb`,
-  or any non-POSIX target).
+- `ReverseIPdb` (over IPython's `TerminalPdb`). `pty_bridge.run` launches it on
+  a **pseudo-terminal** so `prompt_toolkit` engages and computes
+  **tab/dot-completion** against the live frame. It passes `nosigint=True` /
+  `readrc=False` so the debugger neither hijacks the program's Ctrl-C handler
+  nor reads a stray `~/.pdbrc` from the container.
+- The **pty is the transport**: two pump threads shuttle bytes between the pty
+  master and the socket. Either EOF tears the bridge down — a teardown hook
+  closes the pty, shuts down the prompt thread, closes the socket, and releases
+  the shell lock. A dead connection therefore never raises into the program.
 - `DetachMixin` — redefines `q` / `quit` / `exit` / EOF to **detach and
-  continue** instead of raising `BdbQuit` into the program; both flavours set
-  `nosigint=True` / `readrc=False` so the debugger neither hijacks the
-  program's Ctrl-C handler nor reads a stray `~/.pdbrc` from the container.
+  continue** (via that teardown hook) instead of raising `BdbQuit` into the
+  program.
 
-## Layer 4 — Transport (`transport.py` for line mode; the pty for IPython)
-
-The byte pipe between the debugger and the socket.
-
-- `SocketIO` — the line-mode wrapper whose defining property is that a **dead
-  connection never raises into the debugged program**: writes are dropped,
-  reads return EOF (which the debugger reads as detach). Fires an `on_close`
-  hook so Layer 2 can release the shell lock exactly once.
-- For IPython the pty plays this role: `pty_bridge`'s pump is the byte pipe,
-  and its teardown is what releases the lock.
-
-This is the lowest layer and the only one that touches the raw socket object.
+`pty_bridge` is the only code that touches the raw socket and the pty fds.
 
 ---
 
@@ -104,24 +91,23 @@ end of the socket (`python -m ripdb.serve`, or a plain `socat`/`nc`). A
 background acceptor thread fans in **every** connecting container at once —
 reading each one's banner and queueing it so none is refused — while the
 foreground serves them one at a time with a live roster (`--keep` to advance
-into the next instead of exiting). It reads each banner's mode: IPython/pty
-sessions get a raw-mode pass-through (terminal size sent, bytes forwarded via
-select, so completion and special keys work); line sessions get the simple
-stdin/stdout bridge. It is documented alongside the layers because it speaks
-the same wire protocol, but it depends on none of the layers above and ships
-no shared code with them.
+into the next instead of exiting). Each session is a raw-mode pass-through:
+it sends the terminal size, then forwards bytes both ways via select (so
+completion and special keys work) and returns the instant the socket closes.
+One bad session is caught and never brings the listener down. It is documented
+alongside the layers because it speaks the same wire protocol, but it depends
+on none of the layers above and ships no shared code with them.
 
 ## Why these boundaries
 
 Each guarantee lives in exactly one layer, so it can be reasoned about and
 tested in isolation:
 
-| Guarantee                              | Layer that owns it |
-|----------------------------------------|--------------------|
-| Stable public call surface             | 1 — Public API     |
-| No listener → no-op; one shell at a time | 2 — Session       |
-| Quit detaches instead of killing       | 3 — Debugger       |
-| A broken link never crashes the program | 4 — Transport     |
+| Guarantee                                 | Layer that owns it   |
+|--------------------------------------------|----------------------|
+| Stable public call surface                 | 1 — Public API       |
+| No listener → no-op; one shell at a time   | 2 — Session          |
+| Quit detaches instead of killing; a broken link never crashes the program | 3 — Debugger + pty |
 
-Dependencies only ever point downward (1→2→3→4), and the listener sits off to
+Dependencies only ever point downward (1→2→3), and the listener sits off to
 the side, connected solely by the socket.

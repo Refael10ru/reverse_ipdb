@@ -22,9 +22,6 @@ import socket
 import sys
 import threading
 
-with contextlib.suppress(ImportError):  # readline is absent on some platforms
-    import readline  # noqa: F401  (import enables line editing on sys.stdin)
-
 
 def _note(msg):
     """Print a roster line to stderr, flushed so it shows up live."""
@@ -32,12 +29,12 @@ def _note(msg):
 
 
 def _read_banner(conn):
-    """Read the target's first line and parse ``(mode, ident)``.
+    """Read the target's first line and return its human identity.
 
     Byte-at-a-time so we never over-read into the debugger output that
     follows — those bytes must stay in the socket for the pump to stream.
-    The line looks like ``*** ripdb/<mode> <host> pid=.. thread=..``; a plain
-    socat/nc target without the prefix is treated as line mode.
+    The line looks like ``*** ripdb/pty <host> pid=.. thread=..``; the
+    ``ripdb/pty`` tag is stripped, leaving ``<host> pid=.. thread=..``.
     """
     buf = bytearray()
     while not buf.endswith(b"\n"):
@@ -49,33 +46,9 @@ def _read_banner(conn):
             break
         buf += chunk
     text = buf.decode("utf-8", "replace").strip().lstrip("* ").strip()
-    mode, ident = "line", text
     if text.startswith("ripdb/"):
-        head, _, rest = text.partition(" ")
-        mode = head.split("/", 1)[1] or "line"
-        ident = rest.strip()
-    return mode, ident
-
-
-def _pump(conn):
-    """Line-based bridge (plain pdb): socket -> stdout, stdin -> socket.
-
-    A background thread copies the socket to stdout, while the foreground
-    copies stdin to the socket. Local EOF (Ctrl-D) sends ``detach`` so the
-    debugged program continues.
-    """
-    def to_stdout():
-        while data := conn.recv(4096):
-            sys.stdout.write(data.decode("utf-8", "replace"))
-            sys.stdout.flush()
-
-    reader = threading.Thread(target=to_stdout, daemon=True)
-    reader.start()
-    with contextlib.suppress(OSError):
-        for line in sys.stdin:
-            conn.sendall(line.encode("utf-8"))
-        conn.sendall(b"detach\n")  # local EOF -> let the program run on
-    reader.join()  # drain any final output before the session ends
+        _, _, text = text.partition(" ")  # drop the "ripdb/<mode>" tag
+    return text.strip()
 
 
 def _terminal_size():
@@ -85,22 +58,17 @@ def _terminal_size():
     return 80, 24
 
 
-def _pump_raw(conn):
-    """Raw pass-through bridge (IPython/pty): a transparent terminal.
+def _pump(conn):
+    """Raw pass-through bridge: a transparent terminal between you and the target.
 
     Sends our terminal size, puts the local tty in raw mode, and shuttles
     bytes both ways via select — so keystrokes (TAB included) reach the
     target's prompt_toolkit and its vt100 rendering comes straight back.
     Returns the instant the socket closes (clean detach, no extra keypress).
     """
-    try:
-        import select
-        import termios
-        import tty
-    except ImportError:  # pragma: no cover - non-POSIX: degrade to line mode
-        _note("raw mode unavailable on this platform; falling back to line mode")
-        _pump(conn)
-        return
+    import select
+    import termios
+    import tty
 
     cols, rows = _terminal_size()
     with contextlib.suppress(OSError):
@@ -154,25 +122,28 @@ def serve(host="0.0.0.0", port=4444, keep=False):
                     conn, addr = listener.accept()
                 except OSError:
                     return  # listener closed -> we're shutting down
-                mode, ident = _read_banner(conn)
-                ident = ident or f"{addr[0]}:{addr[1]}"
+                ident = _read_banner(conn) or f"{addr[0]}:{addr[1]}"
                 if stopping.is_set():
                     conn.close()
                     return
-                sessions.put((conn, ident, mode))
+                sessions.put((conn, ident))
                 _note(f"queued: {ident}  ({sessions.qsize()} waiting)")
 
         threading.Thread(target=acceptor, daemon=True).start()
 
         try:
             while True:
-                conn, ident, mode = sessions.get()
+                conn, ident = sessions.get()
                 waiting = sessions.qsize()
                 suffix = f"  ({waiting} still waiting)" if waiting else ""
                 _note(f"attached: {ident}{suffix}")
-                with conn:
-                    (_pump_raw if mode == "pty" else _pump)(conn)
-                _note(f"detached: {ident}")
+                try:
+                    with conn:
+                        _pump(conn)
+                except Exception as exc:  # one bad session must not kill the listener
+                    _note(f"session error ({ident}): {exc!r}")
+                else:
+                    _note(f"detached: {ident}")
                 if not keep:
                     return
         finally:

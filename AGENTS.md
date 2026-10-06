@@ -15,12 +15,11 @@ socket. Built for code spread across many containers that you can't connect
 
 ```python
 import ripdb
-ripdb.set_trace()          # default: IPython over a pty -> completion/history/colour
-ripdb.set_trace_pdb()      # stdlib pdb, line-based, pure stdlib, no completion
+ripdb.set_trace()          # IPython over a pty -> completion/history/colour
 ripdb.set_trace_ipython()  # explicit alias of set_trace()
 ```
 
-All three accept the same keyword-only args and resolve **arg → env → default**:
+Both accept the same keyword-only args and resolve **arg → env → default**:
 
 | arg    | env          | default                | meaning                         |
 |--------|--------------|------------------------|---------------------------------|
@@ -38,8 +37,8 @@ Guarantees callers rely on — **do not break these**:
 - **Detach, don't kill.** `q` / `quit` / `exit` / EOF / `detach` remove
   breakpoints, tear down the connection, and `continue` — they never raise
   `BdbQuit` into the program.
-- **Non-POSIX fallback.** No `os.openpty` → `set_trace()` transparently uses the
-  line-based pdb path.
+- **POSIX only.** A pty is required; on a platform without `os.openpty` (e.g.
+  Windows) `set_trace()` is a no-op.
 
 ## Listener (your machine)
 
@@ -50,32 +49,28 @@ socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr   # minimal, single session
 ```
 
 `ripdb-serve` accepts every container immediately (none refused), shows a live
-roster (`queued:` / `attached:` / `detached:`), and for IPython sessions puts
-your terminal in raw mode so completion works. Use a **raw** listener — `nc`
-mangles completion (line-buffered + local echo).
+roster (`queued:` / `attached:` / `detached:`), and puts your terminal in raw
+mode so completion works. Use a **raw** listener — `nc` mangles completion
+(line-buffered + local echo).
 
 ## Wire protocol (keep stable across both sides)
 
 1. Target connects and sends one banner line:
-   `*** ripdb/<mode> <host> pid=<pid> thread=<name>\n`, where `<mode>` is
-   `pty` or `line`. A line without the `ripdb/` prefix is treated as `line`
-   (so raw `socat`/`nc` targets still work).
-2. **pty mode only:** the listener replies with one size line `"<cols> <rows>\n"`;
-   the target sets the pty winsize (defaults to 80×24 if none arrives within
-   `SIZE_TIMEOUT`). Then the stream is a raw vt100 terminal both ways.
-3. **line mode:** plain text; the listener bridges stdin↔socket, and local EOF
-   sends `detach`.
+   `*** ripdb/pty <host> pid=<pid> thread=<name>\n`. The listener strips the
+   `ripdb/pty` tag and shows the rest as the session's identity.
+2. The listener replies with one size line `"<cols> <rows>\n"`; the target sets
+   the pty winsize (defaults to 80×24 if none arrives within `SIZE_TIMEOUT`).
+3. The stream is then a raw vt100 terminal both ways until the socket closes.
 
 ## Module map
 
 ```
 ripdb/
-  api.py         entry points; routes set_trace -> pty (or pdb fallback)
+  api.py         entry points (set_trace / set_trace_ipython); POSIX guard
   client.py      dial() + shell lock + banner(); resolve_target()
-  pty_bridge.py  POSIX: open pty, run TerminalPdb on it, pump <-> socket, teardown
-  debugger.py    ReverseIPdb (TerminalPdb) + ReversePdb (pdb) + DetachMixin
-  transport.py   SocketIO: line-mode file-like socket that never raises in-program
-  serve.py       fan-in listener: accept-all + roster + raw/line pump per session
+  pty_bridge.py  open pty, run TerminalPdb on it, pump <-> socket, teardown
+  debugger.py    ReverseIPdb (TerminalPdb) + DetachMixin
+  serve.py       fan-in listener: accept-all + roster + raw pty pass-through
 ```
 
 Completion mechanism, in one line: IPython's `TerminalPdb.cmdloop` rebinds its
@@ -101,11 +96,10 @@ Keep the gate green.
   *after* TAB, proving the completer evaluated the live object; and the target
   must exit 0 after detach (no leaked prompt_toolkit threads). If you touch
   `pty_bridge.py` or the protocol, this is the test that matters.
-- `tests/test_serve.py` — banner/mode parsing and "many containers all queued,
+- `tests/test_serve.py` — banner parsing and "many containers all queued,
   none refused".
-- `tests/test_api.py` — defaults, aliasing, pdb-fallback no-op.
-- `tests/test_transport.py` / `tests/test_client.py` — fail-open, lock release,
-  SocketIO never raising.
+- `tests/test_api.py` — default routing to the pty bridge and aliasing.
+- `tests/test_client.py` — fail-open and shell-lock acquire/release via `dial()`.
 
 ## Gotchas
 
