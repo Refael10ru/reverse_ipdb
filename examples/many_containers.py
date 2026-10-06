@@ -8,8 +8,9 @@ ONE listener and walk them one at a time.
     uv run python examples/many_containers.py      # terminal 2
 
 Watch terminal 1: the workers queue up ("queued: ... (N waiting)"), and you
-drop into them one by one. At each `ipdb>` prompt, inspect `worker_id` and
-`payload`, then type `detach` to advance to the next waiting worker.
+drop into them one by one. At each `ipdb>` prompt — the full IPython debugger
+with tab-completion — inspect `worker_id` and `payload` (try `payload[<TAB>`
+or `pay<TAB>`), then type `detach` to advance to the next waiting worker.
 
 With no listener running, every worker's breakpoint is a no-op and they all
 just finish.

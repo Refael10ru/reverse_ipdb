@@ -7,7 +7,8 @@ held, treat set_trace() as a no-op, and run straight through.
     uv run ripdb-serve                   # terminal 1
     uv run python examples/threads.py    # terminal 2
 
-You'll get exactly one `ipdb>` prompt. Inspect `worker_id`, then `detach`
+You'll get exactly one `ipdb>` prompt (the full IPython debugger, with
+tab-completion). Inspect `worker_id` — try `worker<TAB>` — then `detach`
 (or Ctrl-D); every thread still finishes.
 """
 

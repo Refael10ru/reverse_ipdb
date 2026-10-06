@@ -10,8 +10,9 @@ again without restarting anything:
     uv run ripdb-serve --keep               # terminal 1 (stays up across detaches)
     uv run python examples/daemon_loop.py   # terminal 2
 
-At the prompt, inspect `tick`, then `detach`; the loop runs on and offers you
-the shell again on the next tick. Ctrl-C here stops the daemon.
+At the `ipdb>` prompt (IPython, with tab-completion) inspect `tick` — try
+`ti<TAB>` — then `detach`; the loop runs on and offers you the shell again on
+the next tick. Ctrl-C here stops the daemon.
 """
 
 import os

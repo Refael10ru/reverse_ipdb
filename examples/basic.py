@@ -8,11 +8,16 @@ then run this:
 
     uv run python examples/basic.py
 
-At the `ipdb>` prompt try:  p total   ·   pp order   ·   bt   ·   l
+At the `ipdb>` prompt you get the full IPython debugger, including
+**tab/dot-completion** against the live frame — try:
+
+    order[0].<TAB>   ·   ord<TAB>   ·   p total   ·   pp order   ·   bt
+
 Type `detach` (or Ctrl-D) to let the program finish.
 
-With no listener running, the breakpoint is a no-op and the script just
-prints its result.
+Use `ripdb-serve` as the listener (it puts your terminal in raw mode so
+completion works). With no listener running, the breakpoint is a no-op and
+the script just prints its result.
 """
 
 import os

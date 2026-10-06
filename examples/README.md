@@ -3,11 +3,13 @@
 Runnable scripts for trying `ripdb` locally. Each one talks to a listener on
 `127.0.0.1:4444` by default (override with `DEBUG_HOST` / `DEBUG_PORT`).
 
-**Every example needs a listener running first**, in a separate terminal:
+`set_trace()` drops into the **IPython debugger with tab/dot-completion**, so
+use `ripdb-serve` as the listener (it puts your terminal in raw mode so
+completion and special keys work). Start it first, in a separate terminal:
 
 ```sh
 uv run ripdb-serve          # one session
-uv run ripdb-serve --keep   # keep listening across detaches (for daemon_loop)
+uv run ripdb-serve --keep   # keep listening across detaches / fan-in
 ```
 
 Then, in another terminal, run an example. If no listener is running, the
@@ -15,11 +17,11 @@ breakpoints are no-ops and the scripts simply print their results.
 
 | Example          | Shows                                                        | Run                                  |
 |------------------|--------------------------------------------------------------|--------------------------------------|
-| `basic.py`       | a single breakpoint; inspect locals, then detach             | `uv run python examples/basic.py`       |
+| `basic.py`       | one breakpoint; completion (`order[0].<TAB>`), inspect, detach | `uv run python examples/basic.py`       |
 | `threads.py`     | the single-shell lock — one shell, other threads pass through | `uv run python examples/threads.py`     |
 | `daemon_loop.py` | attach / detach / re-attach to a long-running process (use `--keep`) | `uv run python examples/daemon_loop.py` |
 | `many_containers.py` | **fan-in** — several "containers" dial out to one `ripdb-serve --keep` | `uv run python examples/many_containers.py` |
-| `madbg_example.py` | **tab-completion** via [madbg](https://github.com/kmaork/madbg) (forward model; separate tool) | `uv run --with madbg python examples/madbg_example.py` |
+| `madbg_example.py` | the **forward** alternative — [madbg](https://github.com/kmaork/madbg) (target listens, you connect in) | `uv run --with madbg python examples/madbg_example.py` |
 
 ## A full walkthrough (basic.py)
 
@@ -36,9 +38,11 @@ Terminal 2:
 uv run python examples/basic.py
 ```
 
-Terminal 1 now shows a banner and an `ipdb>` prompt. Try:
+Terminal 1 now shows a banner and an `ipdb>` prompt — the full IPython
+debugger, so completion works. Try:
 
 ```
+ipdb> order[0].   # press TAB -> name, qty, price, ...
 ipdb> p total
 16.5
 ipdb> pp order
