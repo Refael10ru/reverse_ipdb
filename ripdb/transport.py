@@ -39,12 +39,10 @@ class SocketIO:
 
     def readline(self):
         if not self.dead:
-            try:
+            with contextlib.suppress(OSError):
                 line = self._f.readline()
                 if line:
                     return line
-            except OSError:
-                pass
             self.dead = True
         return ""  # pdb sees EOF -> do_EOF -> detach
 
