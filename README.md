@@ -1,15 +1,21 @@
 # ripdb — reverse-connecting pdb
 
+[![CI](https://github.com/Refael10ru/reverse_ipdb/actions/workflows/ci.yml/badge.svg)](https://github.com/Refael10ru/reverse_ipdb/actions/workflows/ci.yml)
+
 Debugging a process that has no terminal — a container, a daemon, a CI worker — is
 awkward: you can't attach a shell to something that isn't reading from one. `ripdb`
 flips the direction. Instead of *you* attaching *in*, the target process **dials out**
-to a listener you run and hands you a `pdb` shell over the socket.
+to a listener you run and hands you an IPython shell (with completion) over the socket.
+
+> Integrating or extending ripdb from another project/agent? See
+> **[AGENTS.md](AGENTS.md)** for the public API, wire protocol, invariants, and
+> the dev/CI workflow.
 
 ```
 ┌──────────────────────────┐        TCP connect() OUT        ┌──────────────────────────┐
 │  TARGET PROCESS           │ ──────────────────────────────►│  YOUR MACHINE            │
 │  import ripdb             │                                 │  python -m ripdb.serve   │
-│  ripdb.set_trace()        │ ◄──────── pdb over socket ─────►│  (gives you the shell)   │
+│  ripdb.set_trace()        │ ◄────── IPython over socket ───►│  (gives you the shell)   │
 └──────────────────────────┘                                 └──────────────────────────┘
 ```
 

@@ -86,7 +86,7 @@ def run(frame, host=None, port=None):
         return
 
     cols, rows = _read_size(sock)
-    master_fd, slave_fd = os.openpty() if hasattr(os, "openpty") else _openpty()
+    master_fd, slave_fd = os.openpty()  # api.set_trace guards non-POSIX first
     _set_winsize(slave_fd, cols, rows)
 
     slave_in = os.fdopen(slave_fd, "r", buffering=1, encoding="utf-8", errors="replace")
@@ -107,12 +107,15 @@ def run(frame, host=None, port=None):
     # prompt_toolkit uses pt_in/pt_out regardless, so force it back on.
     dbg.use_rawinput = True
 
-    closed = threading.Event()
+    close_lock = threading.Lock()
+    closed = False
 
     def close():
-        if closed.is_set():
-            return
-        closed.set()
+        nonlocal closed
+        with close_lock:
+            if closed:
+                return
+            closed = True
         with contextlib.suppress(Exception):
             dbg.thread_executor.shutdown(wait=False)  # TerminalPdb's prompt thread
         for closer in (lambda: os.close(master_fd),
@@ -138,8 +141,3 @@ def run(frame, host=None, port=None):
     except BaseException:
         close()
         raise
-
-
-def _openpty():  # pragma: no cover - pty fallback for odd platforms
-    import pty
-    return pty.openpty()
