@@ -46,16 +46,15 @@ ripdb.set_trace()                          # host/port from DEBUG_HOST / DEBUG_P
 ripdb.set_trace(host="10.0.0.5", port=4444)  # or set them explicitly
 ```
 
-`set_trace()` drops into the **IPython** debugger by default. If you'd rather
-use the standard-library `pdb`, call `ripdb.set_trace_pdb()` instead.
-(`ripdb.set_trace_ipython()` is kept as an explicit alias of `set_trace()`.)
+`set_trace()` drops into the **IPython** debugger.
+(`ripdb.set_trace_ipython()` is an explicit alias.)
 
 You get **real tab/dot-completion**, history and colour: `set_trace()` runs
 IPython's debugger over a pseudo-terminal, so `order.<TAB>` completes against
 the live frame — all computed on the target and rendered to your terminal.
 Use the bundled `ripdb-serve` (or `socat …,raw,echo=0`) as the listener so
-your terminal is in raw mode. POSIX targets only; on other platforms it falls
-back to line-based pdb automatically. See [docs/completion.md](docs/completion.md).
+your terminal is in raw mode. POSIX targets only; on a platform without a pty
+(e.g. Windows) `set_trace()` is a no-op. See [docs/completion.md](docs/completion.md).
 
 Configuration resolves **argument → environment variable → default**:
 
@@ -144,13 +143,13 @@ This is deliberate: a stray `q` over a flaky debugging link should never raise
 - **Completion over the wire.** The IPython debugger runs on a pty so
   prompt_toolkit engages; completion is computed on the target against the
   live frame and rendered to your terminal. POSIX targets only — elsewhere
-  `set_trace()` falls back to line-based pdb.
+  `set_trace()` is a no-op.
 - **Small surface.** IPython (which brings prompt_toolkit) is the only runtime
   dependency; everything else is stdlib.
 
 ## Security
 
-`set_trace()` opens a `pdb` shell to whoever connects on the port — and a `pdb`
+`set_trace()` opens a debugger shell to whoever connects on the port — and that
 shell can run arbitrary code in the target process. There is **no authentication**.
 Only enable it on trusted networks (loopback, a private debug interface, an SSH
 tunnel), never on a public port. Leaving a `ripdb.set_trace()` enabled on an
@@ -163,12 +162,11 @@ For how these modules stack into layers and which guarantee each one owns, see
 
 ```
 ripdb/
-  __init__.py    public API re-exports (set_trace, set_trace_pdb, set_trace_ipython)
+  __init__.py    public API re-exports (set_trace, set_trace_ipython)
   api.py         the entry points
   client.py      target side: resolve host/port, dial out, single-shell lock
-  debugger.py    ReversePdb + ReverseIPdb + detach-on-quit mixin
+  debugger.py    ReverseIPdb (IPython TerminalPdb) + detach-on-quit mixin
   pty_bridge.py  IPython-over-pty launcher so prompt_toolkit completion works
-  transport.py   SocketIO: file-like socket wrapper that never raises into the program
   serve.py       the fan-in listener: python -m ripdb.serve
 examples/        runnable scripts for trying it locally (see examples/README.md)
 tests/           pytest suite (unit + end-to-end over a real socket)

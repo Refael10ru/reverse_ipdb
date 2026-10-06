@@ -12,12 +12,12 @@ In the target::
 
 On your machine::
 
-    python -m ripdb.serve                   # or: socat readline TCP-LISTEN:4444,reuseaddr
+    python -m ripdb.serve                   # or: socat STDIO,raw,echo=0 TCP-LISTEN:4444
 
 No listener -> set_trace() is a no-op and the program keeps running.
 """
 
-from .api import set_trace, set_trace_ipython, set_trace_pdb
+from .api import set_trace, set_trace_ipython
 
-__all__ = ["set_trace", "set_trace_ipython", "set_trace_pdb"]
+__all__ = ["set_trace", "set_trace_ipython"]
 __version__ = "0.1.0"

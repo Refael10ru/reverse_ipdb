@@ -80,7 +80,7 @@ def run(frame, host=None, port=None):
     from .debugger import ReverseIPdb
 
     try:
-        sock.sendall(client.banner("pty").encode("utf-8"))
+        sock.sendall(client.banner().encode("utf-8"))
     except OSError:
         release()
         return

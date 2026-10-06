@@ -19,13 +19,11 @@ arranges that by giving the **target** a pseudo-terminal:
 
 Requirements:
 
-- **Use a raw listener.** `ripdb-serve` does this automatically for IPython
-  sessions. With a plain socket tool use `socat STDIO,raw,echo=0
-  TCP-LISTEN:4444,reuseaddr` — **not** `nc` (line-buffered + local echo
-  mangle completion).
-- **POSIX target.** The pty uses `pty`/`termios`. On other platforms
-  `set_trace()` falls back to line-based pdb (no completion) automatically.
-- Prefer the stdlib pdb anyway? Call `ripdb.set_trace_pdb()`.
+- **Use a raw listener.** `ripdb-serve` does this automatically. With a plain
+  socket tool use `socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr` — **not**
+  `nc` (line-buffered + local echo mangle completion).
+- **POSIX target.** The pty uses `pty`/`termios`. On a platform without
+  `os.openpty` (e.g. Windows) `set_trace()` is a no-op.
 
 That's it — there's nothing to turn on.
 
