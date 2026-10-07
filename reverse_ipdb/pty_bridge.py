@@ -22,8 +22,8 @@ import threading
 from prompt_toolkit.input.vt100 import Vt100Input
 from prompt_toolkit.output.vt100 import Vt100_Output
 
-from . import client
-from .debugger import ReverseIPdb
+from reverse_ipdb import client
+from reverse_ipdb.debugger import ReverseIPdb
 
 DEFAULT_COLS, DEFAULT_ROWS = 80, 24
 SIZE_TIMEOUT = 0.5  # how long to wait for the listener's terminal size

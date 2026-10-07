@@ -94,7 +94,8 @@ Keep the gate green.
 
 Ruff enforces **PLC0415** (imports at the top of the file) — every import is
 at module top, no in-function imports. `import reverse_ipdb` therefore pulls in
-IPython/prompt_toolkit eagerly and requires POSIX (`termios`).
+IPython/prompt_toolkit eagerly and requires POSIX (`termios`). It also enforces
+**TID252** (no relative imports) — use absolute `reverse_ipdb.*` imports.
 
 **`hasattr` is banned in the library** (prefer EAFP / try-except). Ruff has no
 native check for it, so `tests/test_style.py` enforces it by AST-scanning
