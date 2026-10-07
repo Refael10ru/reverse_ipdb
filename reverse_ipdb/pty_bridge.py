@@ -19,7 +19,11 @@ import struct
 import termios
 import threading
 
+from prompt_toolkit.input.vt100 import Vt100Input
+from prompt_toolkit.output.vt100 import Vt100_Output
+
 from . import client
+from .debugger import ReverseIPdb
 
 DEFAULT_COLS, DEFAULT_ROWS = 80, 24
 SIZE_TIMEOUT = 0.5  # how long to wait for the listener's terminal size
@@ -33,7 +37,7 @@ def _set_winsize(fd, cols, rows):
 def _read_size(sock):
     """Read the listener's ``"cols rows\\n"`` size line, or fall back to a default.
 
-    ripdb-serve sends it right after attaching; a plain socat/nc listener
+    reverse_ipdb-serve sends it right after attaching; a plain socat/nc listener
     won't, so we time out and use a sensible default.
     """
     sock.settimeout(SIZE_TIMEOUT)
@@ -76,9 +80,6 @@ def run(frame, host=None, port=None):
         return
     sock, release = dialed
 
-    # Import lazily so a failed/absent listener costs nothing.
-    from .debugger import ReverseIPdb
-
     try:
         sock.sendall(client.banner().encode("utf-8"))
     except OSError:
@@ -93,8 +94,6 @@ def run(frame, host=None, port=None):
     slave_out = os.fdopen(os.dup(slave_fd), "w", buffering=1, encoding="utf-8",
                           errors="replace")
 
-    from prompt_toolkit.input.vt100 import Vt100Input
-    from prompt_toolkit.output.vt100 import Vt100_Output
     pt_in = Vt100Input(slave_in)
     pt_out = Vt100_Output.from_pty(slave_out)
 
@@ -124,7 +123,7 @@ def run(frame, host=None, port=None):
                 closer()
         release()
 
-    dbg._ripdb_close = close
+    dbg._reverse_ipdb_close = close
 
     # Pump bytes both ways; either EOF tears the whole bridge down.
     threading.Thread(

@@ -7,7 +7,7 @@ one at a time, with a live roster of who is waiting.
 
 Usage::
 
-    python -m ripdb.serve [--host HOST] [--port PORT] [--keep]
+    python -m reverse_ipdb.serve [--host HOST] [--port PORT] [--keep]
 
 Without ``--keep`` the listener serves the first container and exits. With
 ``--keep`` it keeps serving: detach from one and you drop straight into the
@@ -18,9 +18,12 @@ import argparse
 import contextlib
 import os
 import queue
+import select
 import socket
 import sys
+import termios
 import threading
+import tty
 
 
 def _note(msg):
@@ -33,8 +36,8 @@ def _read_banner(conn):
 
     Byte-at-a-time so we never over-read into the debugger output that
     follows — those bytes must stay in the socket for the pump to stream.
-    The line looks like ``*** ripdb/pty <host> pid=.. thread=..``; the
-    ``ripdb/pty`` tag is stripped, leaving ``<host> pid=.. thread=..``.
+    The line looks like ``*** reverse_ipdb/pty <host> pid=.. thread=..``; the
+    ``reverse_ipdb/pty`` tag is stripped, leaving ``<host> pid=.. thread=..``.
     """
     buf = bytearray()
     while not buf.endswith(b"\n"):
@@ -46,8 +49,8 @@ def _read_banner(conn):
             break
         buf += chunk
     text = buf.decode("utf-8", "replace").strip().lstrip("* ").strip()
-    if text.startswith("ripdb/"):
-        _, _, text = text.partition(" ")  # drop the "ripdb/<mode>" tag
+    if text.startswith("reverse_ipdb/"):
+        _, _, text = text.partition(" ")  # drop the "reverse_ipdb/<mode>" tag
     return text.strip()
 
 
@@ -66,10 +69,6 @@ def _pump(conn):
     target's prompt_toolkit and its vt100 rendering comes straight back.
     Returns the instant the socket closes (clean detach, no extra keypress).
     """
-    import select
-    import termios
-    import tty
-
     cols, rows = _terminal_size()
     with contextlib.suppress(OSError):
         conn.sendall(f"{cols} {rows}\n".encode())
@@ -113,7 +112,7 @@ def serve(host="0.0.0.0", port=4444, keep=False):
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, port))
         listener.listen(128)  # roomy backlog so a burst of containers isn't refused
-        _note(f"ripdb listening on {host}:{port} "
+        _note(f"reverse_ipdb listening on {host}:{port} "
               f"({'keep-alive' if keep else 'one-shot'}) — Ctrl-C to quit")
 
         def acceptor():
@@ -161,7 +160,7 @@ def serve(host="0.0.0.0", port=4444, keep=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="ripdb.serve",
+        prog="reverse_ipdb.serve",
         description="Fan in reverse-connecting pdb sessions from many containers.",
     )
     parser.add_argument("--host", default="0.0.0.0",

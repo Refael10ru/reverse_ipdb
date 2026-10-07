@@ -9,7 +9,7 @@ import sys
 
 def test_no_listener_is_noop():
     # Port 1 refuses immediately; set_trace must be a no-op and the program exits 0.
-    src = "import ripdb; ripdb.set_trace(host='127.0.0.1', port=1); print('OK')"
+    src = "import reverse_ipdb; reverse_ipdb.set_trace(host='127.0.0.1', port=1); print('OK')"
     out = subprocess.run(
         [sys.executable, "-c", src],
         capture_output=True, text=True, timeout=10,

@@ -1,13 +1,13 @@
 # Tab / dot completion
 
-`ripdb.set_trace()` gives you **real completion** — `cfg.<TAB>` lists
+`reverse_ipdb.set_trace()` gives you **real completion** — `cfg.<TAB>` lists
 attributes, `ord<TAB>` completes `order`, history and colour all work — the
 full IPython debugger, over the reverse/dial-out connection.
 
 ## How it works (and what it needs)
 
 Completion needs a real terminal: the keystrokes (your TAB) and the namespace
-being completed (the live frame) have to meet somewhere a TTY exists. ripdb
+being completed (the live frame) have to meet somewhere a TTY exists. reverse_ipdb
 arranges that by giving the **target** a pseudo-terminal:
 
 - `set_trace()` runs IPython's `TerminalPdb` on a **pty** inside the target,
@@ -19,18 +19,18 @@ arranges that by giving the **target** a pseudo-terminal:
 
 Requirements:
 
-- **Use a raw listener.** `ripdb-serve` does this automatically. With a plain
+- **Use a raw listener.** `reverse_ipdb-serve` does this automatically. With a plain
   socket tool use `socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr` — **not**
   `nc` (line-buffered + local echo mangle completion).
-- **POSIX target.** The pty uses `pty`/`termios`. On a platform without
-  `os.openpty` (e.g. Windows) `set_trace()` is a no-op.
+- **POSIX target.** The pty uses `pty`/`termios`, which the package imports at
+  the top level, so `import reverse_ipdb` requires a Unix platform.
 
 That's it — there's nothing to turn on.
 
 ## This works *across many containers*
 
 Completion composes with the fan-in model: point every container at one
-`ripdb-serve --keep`, and each paused container gives you a full
+`reverse_ipdb-serve --keep`, and each paused container gives you a full
 completion-enabled IPython shell as you walk the roster. You never connect
 *to* the containers.
 
@@ -41,5 +41,5 @@ debugger with completion, via a pty. The difference is direction: madbg is
 **forward** — the debugged process listens and you connect *in* to each one.
 That's fine for a single reachable target (or one behind an SSH tunnel), but
 for code spread across many containers you'd be chasing N endpoints — which is
-exactly what ripdb's dial-out fan-in avoids. Use madbg for a single target you
-can reach; use ripdb to debug *out* of many containers into one place.
+exactly what reverse_ipdb's dial-out fan-in avoids. Use madbg for a single target you
+can reach; use reverse_ipdb to debug *out* of many containers into one place.

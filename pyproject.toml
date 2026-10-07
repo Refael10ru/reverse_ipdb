@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ripdb"
+name = "reverse_ipdb"
 version = "0.1.0"
-description = "Reverse-connecting pdb: ripdb.set_trace() dials out to a listener you run."
+description = "Reverse-connecting pdb: reverse_ipdb.set_trace() dials out to a listener you run."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
@@ -18,24 +18,26 @@ classifiers = [
 dependencies = ["ipython"]
 
 [project.scripts]
-ripdb-serve = "ripdb.serve:main"
+reverse_ipdb-serve = "reverse_ipdb.serve:main"
 
 [dependency-groups]
 dev = ["pytest", "ruff", "mypy"]
 
 [tool.setuptools.packages.find]
-include = ["ripdb*"]
+include = ["reverse_ipdb*"]
 
 [tool.ruff]
 target-version = "py38"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+# PLC0415: all imports must be at the top of the file (no imports inside
+# functions), except where explicitly marked (deferred heavy/POSIX imports).
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["ripdb"]
+files = ["reverse_ipdb"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_untyped_defs = false

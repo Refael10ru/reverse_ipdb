@@ -1,6 +1,6 @@
 # API layers
 
-`ripdb` is organised as **three thin layers** on the target side, stacked so
+`reverse_ipdb` is organised as **three thin layers** on the target side, stacked so
 that each one depends only on the layer directly below it. A fourth component,
 the listener, is the remote *peer* of the stack rather than another layer in
 it — it lives on your machine, at the far end of the socket.
@@ -8,7 +8,7 @@ it — it lives on your machine, at the far end of the socket.
 ```
             TARGET PROCESS                                  YOUR MACHINE
  ┌───────────────────────────────────┐
- │ 1. Public API      api.py          │   what you call: ripdb.set_trace()
+ │ 1. Public API      api.py          │   what you call: reverse_ipdb.set_trace()
  │        │                           │
  │        ▼                           │
  │ 2. Session         client.py       │   decide IF a session happens:
@@ -37,6 +37,8 @@ The only surface callers touch.
 
 - `set_trace(*, host=None, port=None, frame=None)` — the IPython debugger
 - `set_trace_ipython` — explicit alias of `set_trace`
+- `docker_set_trace(*, …)` — `set_trace` with the default host set to
+  `host.docker.internal` (arg → `DEBUG_HOST` → that)
 
 **Responsibility:** be the entry point and nothing more. It grabs the caller's
 frame, guards non-POSIX (no `os.openpty` → no-op), and hands off to Layer 3
@@ -53,7 +55,7 @@ debugger exists.
 - `dial()` — acquires the shell lock, then dials the listener with a short
   timeout and **fails open** (returns `None`, releasing the lock) when nobody
   is listening. Returns `(sock, release)` otherwise.
-- `banner()` — the `*** ripdb/pty …` identity line sent first.
+- `banner()` — the `*** reverse_ipdb/pty …` identity line sent first.
 - The module-level **single-shell lock** — the first thread to reach a
   breakpoint wins the shell; concurrent arrivals get `None` and pass through.
   The lock is held for the whole session and released by `release()` when the
@@ -87,7 +89,7 @@ The interactive behaviour, and the byte pipe that carries it.
 ## The peer — Listener (`serve.py`)
 
 Not part of the target-side stack; it runs on **your** machine as the other
-end of the socket (`python -m ripdb.serve`, or a plain `socat`/`nc`). A
+end of the socket (`python -m reverse_ipdb.serve`, or a plain `socat`/`nc`). A
 background acceptor thread fans in **every** connecting container at once —
 reading each one's banner and queueing it so none is refused — while the
 foreground serves them one at a time with a live roster (`--keep` to advance

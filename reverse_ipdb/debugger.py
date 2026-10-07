@@ -17,7 +17,7 @@ class DetachMixin:
         """detach | q | Ctrl-D
         Remove all breakpoints, tear down the connection, let the program run."""
         self.clear_all_breaks()
-        close = getattr(self, "_ripdb_close", None)
+        close = getattr(self, "_reverse_ipdb_close", None)
         if close is not None:
             close()  # set by pty_bridge: shut down the prompt, close pty + socket
         return self.do_continue(arg)
@@ -31,5 +31,5 @@ class ReverseIPdb(DetachMixin, TerminalPdb):
 
     Constructed by ``pty_bridge.run`` with stdin/stdout bound to the pty slave
     and prompt_toolkit I/O in ``pt_session_options``; the launcher also sets
-    ``_ripdb_close`` to tear the bridge down on detach.
+    ``_reverse_ipdb_close`` to tear the bridge down on detach.
     """

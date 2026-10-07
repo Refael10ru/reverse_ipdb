@@ -1,9 +1,9 @@
 """madbg example: the same scenario as basic.py, but with tab-completion.
 
-madbg is a separate tool (not a ripdb dependency) that gives the target a
+madbg is a separate tool (not a reverse_ipdb dependency) that gives the target a
 full remote IPython TTY — so `order.` + TAB, history, and line editing all
 work. It is "forward": the target listens and you connect in. See
-docs/completion.md for why ripdb can't do this and when to prefer each.
+docs/completion.md for why reverse_ipdb can't do this and when to prefer each.
 
     # terminal 1 — the target; `--with madbg` pulls madbg in just for this run
     uv run --with madbg python examples/madbg_example.py

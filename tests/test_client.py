@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from ripdb import client
+from reverse_ipdb import client
 
 
 def test_resolve_target_defaults(monkeypatch):
@@ -28,7 +28,7 @@ def test_resolve_target_args_win(monkeypatch):
 
 def test_banner_is_pty_tagged():
     line = client.banner()
-    assert line.startswith("*** ripdb/pty ")
+    assert line.startswith("*** reverse_ipdb/pty ")
     assert "pid=" in line and "thread=" in line and line.endswith("\n")
 
 
