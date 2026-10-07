@@ -20,15 +20,15 @@ reverse_ipdb.set_trace_ipython()  # explicit alias of set_trace()
 reverse_ipdb.docker_set_trace()   # like set_trace, default host = host.docker.internal
 ```
 
-All accept the same keyword-only args and resolve **arg → env → default**
-(`docker_set_trace`'s default is `host.docker.internal`; on Linux start the
-container with `--add-host=host.docker.internal:host-gateway`):
+All take keyword-only `host` / `port`, resolved **arg → env → default**
+(`docker_set_trace`'s host default is `host.docker.internal`; on Linux start
+the container with `--add-host=host.docker.internal:host-gateway`):
 
 | arg    | env          | default                | meaning                         |
 |--------|--------------|------------------------|---------------------------------|
 | `host` | `DEBUG_HOST` | `host.docker.internal` | listener host to dial           |
 | `port` | `DEBUG_PORT` | `4444`                 | listener port                   |
-| `frame`| —            | caller's frame         | where to stop (rarely passed)   |
+| `frame`| —            | caller's frame         | where to stop; **`set_trace` / `set_trace_ipython` only**, rarely passed |
 
 Guarantees callers rely on — **do not break these**:
 

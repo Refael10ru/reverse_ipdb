@@ -37,7 +37,7 @@ def set_trace(*, host=None, port=None, frame=None):
     pty_bridge.run(frame or sys._getframe(1), host=host, port=port)
 
 
-def docker_set_trace(*, host=None, port=None, frame=None):
+def docker_set_trace(*, host=None, port=None):
     """``set_trace()`` preconfigured for containers.
 
     Identical to :func:`set_trace` except the host default is the Docker
@@ -56,12 +56,13 @@ def docker_set_trace(*, host=None, port=None, frame=None):
         port: TCP port of the listener. When ``None`` (the default), it is
             resolved from the ``DEBUG_PORT`` environment variable, falling back
             to ``4444``.
-        frame: The stack frame to stop in. When ``None`` (the default), the
-            caller's frame is used — i.e. execution pauses at the
-            ``docker_set_trace`` call site. Rarely passed explicitly.
+
+    (There is no ``frame`` parameter: as a convenience preset this always stops
+    at its own call site. If you need to control the frame — a wrapper, a signal
+    handler, post-mortem — call :func:`set_trace` directly.)
     """
     host = host or os.environ.get("DEBUG_HOST") or DOCKER_HOST
-    set_trace(host=host, port=port, frame=frame or sys._getframe(1))
+    set_trace(host=host, port=port, frame=sys._getframe(1))
 
 
 # Explicit alias — IPython-over-pty is the only mode.
