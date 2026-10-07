@@ -40,8 +40,8 @@ Guarantees callers rely on — **do not break these**:
 - **Detach, don't kill.** `q` / `quit` / `exit` / EOF / `detach` remove
   breakpoints, tear down the connection, and `continue` — they never raise
   `BdbQuit` into the program.
-- **POSIX only.** A pty is required; on a platform without `os.openpty` (e.g.
-  Windows) `set_trace()` is a no-op.
+- **POSIX only.** A pty is required, so the package imports `termios` at the
+  top level — `import reverse_ipdb` only works on a Unix platform.
 
 ## Listener (your machine)
 
@@ -92,10 +92,9 @@ uv run pytest -q        # tests
 CI (`.github/workflows/ci.yml`) runs all three on push/PR for Python 3.11–3.12.
 Keep the gate green.
 
-Ruff enforces **PLC0415** (imports at the top of the file). The only exceptions
-are the deferred imports in `api.py` / `pty_bridge.py` marked `# noqa: PLC0415`
-— they are load-bearing (a top-level `import termios`/IPython would break
-`import reverse_ipdb` on Windows and defeat the cheap no-op). Don't hoist them.
+Ruff enforces **PLC0415** (imports at the top of the file) — every import is
+at module top, no in-function imports. `import reverse_ipdb` therefore pulls in
+IPython/prompt_toolkit eagerly and requires POSIX (`termios`).
 
 ## Regression anchors (what the tests pin)
 

@@ -59,8 +59,8 @@ You get **real tab/dot-completion**, history and colour: `set_trace()` runs
 IPython's debugger over a pseudo-terminal, so `order.<TAB>` completes against
 the live frame — all computed on the target and rendered to your terminal.
 Use the bundled `reverse_ipdb-serve` (or `socat …,raw,echo=0`) as the listener so
-your terminal is in raw mode. POSIX targets only; on a platform without a pty
-(e.g. Windows) `set_trace()` is a no-op. See [docs/completion.md](docs/completion.md).
+your terminal is in raw mode. POSIX only — the package imports `termios`, so
+`import reverse_ipdb` requires a Unix platform. See [docs/completion.md](docs/completion.md).
 
 Configuration resolves **argument → environment variable → default**:
 

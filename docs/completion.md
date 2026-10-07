@@ -22,8 +22,8 @@ Requirements:
 - **Use a raw listener.** `reverse_ipdb-serve` does this automatically. With a plain
   socket tool use `socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr` — **not**
   `nc` (line-buffered + local echo mangle completion).
-- **POSIX target.** The pty uses `pty`/`termios`. On a platform without
-  `os.openpty` (e.g. Windows) `set_trace()` is a no-op.
+- **POSIX target.** The pty uses `pty`/`termios`, which the package imports at
+  the top level, so `import reverse_ipdb` requires a Unix platform.
 
 That's it — there's nothing to turn on.
 

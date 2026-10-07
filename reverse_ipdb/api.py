@@ -6,13 +6,14 @@ Call these directly from the code you want to pause::
     reverse_ipdb.set_trace()          # IPython over a pty -> tab/dot-completion
     reverse_ipdb.set_trace_ipython()  # explicit alias of set_trace()
 
-Imports of IPython / prompt_toolkit are deferred until a listener is actually
-reached, so a breakpoint with nobody listening stays a cheap no-op.
+POSIX only: the pty machinery (and so this package) imports ``termios``, so
+``import reverse_ipdb`` requires a Unix platform.
 """
 
 import os
 import sys
 
+from . import pty_bridge
 from .client import DOCKER_HOST
 
 
@@ -20,15 +21,8 @@ def set_trace(*, host=None, port=None, frame=None):
     """Pause here and hand an IPython shell (with completion) to the listener.
 
     IPython runs over a pseudo-terminal, so completion/history/colour work. No
-    listener (or a shell already active elsewhere) -> no-op. A pty is required,
-    so on a platform without ``os.openpty`` (e.g. Windows) this is a no-op too.
+    listener (or a shell already active elsewhere) -> no-op.
     """
-    if not hasattr(os, "openpty"):
-        return
-    # Deferred: pty_bridge imports termios (POSIX-only), so a top-level import
-    # would break `import reverse_ipdb` on Windows, and it keeps the no-listener
-    # path from importing anything heavy.
-    from . import pty_bridge  # noqa: PLC0415
     pty_bridge.run(frame or sys._getframe(1), host=host, port=port)
 
 
