@@ -29,12 +29,12 @@ def resolve_target(host=None, port=None):
 def banner():
     """The first line a target sends: a machine-readable tag + human identity.
 
-    The ``ripdb/pty`` tag lets the listener recognise us and switch its
+    The ``reverse_ipdb/pty`` tag lets the listener recognise us and switch its
     terminal to raw pass-through.
     """
     host = socket.gethostname()
     thread = threading.current_thread().name
-    return f"*** ripdb/pty {host} pid={os.getpid()} thread={thread}\n"
+    return f"*** reverse_ipdb/pty {host} pid={os.getpid()} thread={thread}\n"
 
 
 def dial(host=None, port=None):

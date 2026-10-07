@@ -1,4 +1,4 @@
-# AGENTS.md — integrating & extending ripdb
+# AGENTS.md — integrating & extending reverse_ipdb
 
 Orientation for an agent (or human) picking this up. For usage prose see
 [README.md](README.md); for the completion internals see
@@ -14,9 +14,9 @@ socket. Built for code spread across many containers that you can't connect
 ## Public API (target side)
 
 ```python
-import ripdb
-ripdb.set_trace()          # IPython over a pty -> completion/history/colour
-ripdb.set_trace_ipython()  # explicit alias of set_trace()
+import reverse_ipdb
+reverse_ipdb.set_trace()          # IPython over a pty -> completion/history/colour
+reverse_ipdb.set_trace_ipython()  # explicit alias of set_trace()
 ```
 
 Both accept the same keyword-only args and resolve **arg → env → default**:
@@ -43,12 +43,12 @@ Guarantees callers rely on — **do not break these**:
 ## Listener (your machine)
 
 ```sh
-uv run ripdb-serve --keep          # fan-in: serve one container, detach, next…
-python -m ripdb.serve --keep       # same, without uv
+uv run reverse_ipdb-serve --keep          # fan-in: serve one container, detach, next…
+python -m reverse_ipdb.serve --keep       # same, without uv
 socat STDIO,raw,echo=0 TCP-LISTEN:4444,reuseaddr   # minimal, single session
 ```
 
-`ripdb-serve` accepts every container immediately (none refused), shows a live
+`reverse_ipdb-serve` accepts every container immediately (none refused), shows a live
 roster (`queued:` / `attached:` / `detached:`), and puts your terminal in raw
 mode so completion works. Use a **raw** listener — `nc` mangles completion
 (line-buffered + local echo).
@@ -56,8 +56,8 @@ mode so completion works. Use a **raw** listener — `nc` mangles completion
 ## Wire protocol (keep stable across both sides)
 
 1. Target connects and sends one banner line:
-   `*** ripdb/pty <host> pid=<pid> thread=<name>\n`. The listener strips the
-   `ripdb/pty` tag and shows the rest as the session's identity.
+   `*** reverse_ipdb/pty <host> pid=<pid> thread=<name>\n`. The listener strips the
+   `reverse_ipdb/pty` tag and shows the rest as the session's identity.
 2. The listener replies with one size line `"<cols> <rows>\n"`; the target sets
    the pty winsize (defaults to 80×24 if none arrives within `SIZE_TIMEOUT`).
 3. The stream is then a raw vt100 terminal both ways until the socket closes.
@@ -65,7 +65,7 @@ mode so completion works. Use a **raw** listener — `nc` mangles completion
 ## Module map
 
 ```
-ripdb/
+reverse_ipdb/
   api.py         entry points (set_trace / set_trace_ipython); POSIX guard
   client.py      dial() + shell lock + banner(); resolve_target()
   pty_bridge.py  open pty, run TerminalPdb on it, pump <-> socket, teardown
@@ -104,9 +104,9 @@ Keep the gate green.
 ## Gotchas
 
 - **"Completion doesn't work" is almost always a stale install or a non-raw
-  listener.** New build → banner shows `ripdb/pty` and the roster prints
-  `queued:`/`attached:`; old build → bannerless `ripdb/...` and `session from`.
-  Fix: `git pull && uv sync`. And use `ripdb-serve` (or `socat …,raw,echo=0`).
+  listener.** New build → banner shows `reverse_ipdb/pty` and the roster prints
+  `queued:`/`attached:`; old build → bannerless `reverse_ipdb/...` and `session from`.
+  Fix: `git pull && uv sync`. And use `reverse_ipdb-serve` (or `socat …,raw,echo=0`).
 - A completion **menu** (several candidates) stays open until dismissed; clear
   the line (Ctrl-U) before typing `detach`.
 - Mid-session terminal **resize** isn't propagated — size is sent once at attach.

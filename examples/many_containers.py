@@ -4,7 +4,7 @@ This simulates code spread across containers — each worker is a separate
 process that hits a breakpoint and dials OUT to the same listener. You run
 ONE listener and walk them one at a time.
 
-    uv run ripdb-serve --keep                     # terminal 1 (leave it running)
+    uv run reverse_ipdb-serve --keep                     # terminal 1 (leave it running)
     uv run python examples/many_containers.py      # terminal 2
 
 Watch terminal 1: the workers queue up ("queued: ... (N waiting)"), and you
@@ -20,7 +20,7 @@ import multiprocessing
 import os
 import time
 
-import ripdb
+import reverse_ipdb
 
 HOST = os.environ.get("DEBUG_HOST", "127.0.0.1")
 PORT = int(os.environ.get("DEBUG_PORT", "4444"))
@@ -32,13 +32,13 @@ def worker(worker_id):
     time.sleep(0.3 * worker_id)
     payload = {"id": worker_id, "value": worker_id * 111}
     print(f"worker {worker_id} (pid {os.getpid()}) hitting its breakpoint")
-    ripdb.set_trace(host=HOST, port=PORT)  # dials out; pauses until it's served
+    reverse_ipdb.set_trace(host=HOST, port=PORT)  # dials out; pauses until it's served
     print(f"worker {worker_id} resumed -> {payload['value']}")
 
 
 def main():
     print(f"starting {N_WORKERS} workers -> {HOST}:{PORT} "
-          f"(run `ripdb-serve --keep` to catch them)")
+          f"(run `reverse_ipdb-serve --keep` to catch them)")
     procs = [
         multiprocessing.Process(target=worker, args=(i,), name=f"worker-{i}")
         for i in range(1, N_WORKERS + 1)

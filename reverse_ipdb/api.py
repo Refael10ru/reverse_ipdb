@@ -2,9 +2,9 @@
 
 Call these directly from the code you want to pause::
 
-    import ripdb
-    ripdb.set_trace()          # IPython over a pty -> tab/dot-completion
-    ripdb.set_trace_ipython()  # explicit alias of set_trace()
+    import reverse_ipdb
+    reverse_ipdb.set_trace()          # IPython over a pty -> tab/dot-completion
+    reverse_ipdb.set_trace_ipython()  # explicit alias of set_trace()
 
 Imports of IPython / prompt_toolkit are deferred until a listener is actually
 reached, so a breakpoint with nobody listening stays a cheap no-op.

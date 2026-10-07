@@ -2,7 +2,7 @@
 
 Run the listener first (in another terminal):
 
-    uv run ripdb-serve
+    uv run reverse_ipdb-serve
 
 then run this:
 
@@ -15,14 +15,14 @@ At the `ipdb>` prompt you get the full IPython debugger, including
 
 Type `detach` (or Ctrl-D) to let the program finish.
 
-Use `ripdb-serve` as the listener (it puts your terminal in raw mode so
+Use `reverse_ipdb-serve` as the listener (it puts your terminal in raw mode so
 completion works). With no listener running, the breakpoint is a no-op and
 the script just prints its result.
 """
 
 import os
 
-import ripdb
+import reverse_ipdb
 
 # Point at the local listener by default; override with DEBUG_HOST/DEBUG_PORT.
 HOST = os.environ.get("DEBUG_HOST", "127.0.0.1")
@@ -32,7 +32,7 @@ PORT = int(os.environ.get("DEBUG_PORT", "4444"))
 def total_price(order):
     total = sum(item["qty"] * item["price"] for item in order)
     # Pause here so you can inspect `order` and `total` before they're returned.
-    ripdb.set_trace(host=HOST, port=PORT)
+    reverse_ipdb.set_trace(host=HOST, port=PORT)
     return total
 
 

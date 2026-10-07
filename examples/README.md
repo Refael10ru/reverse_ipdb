@@ -1,15 +1,15 @@
 # Examples
 
-Runnable scripts for trying `ripdb` locally. Each one talks to a listener on
+Runnable scripts for trying `reverse_ipdb` locally. Each one talks to a listener on
 `127.0.0.1:4444` by default (override with `DEBUG_HOST` / `DEBUG_PORT`).
 
 `set_trace()` drops into the **IPython debugger with tab/dot-completion**, so
-use `ripdb-serve` as the listener (it puts your terminal in raw mode so
+use `reverse_ipdb-serve` as the listener (it puts your terminal in raw mode so
 completion and special keys work). Start it first, in a separate terminal:
 
 ```sh
-uv run ripdb-serve          # one session
-uv run ripdb-serve --keep   # keep listening across detaches / fan-in
+uv run reverse_ipdb-serve          # one session
+uv run reverse_ipdb-serve --keep   # keep listening across detaches / fan-in
 ```
 
 Then, in another terminal, run an example. If no listener is running, the
@@ -20,7 +20,7 @@ breakpoints are no-ops and the scripts simply print their results.
 | `basic.py`       | one breakpoint; completion (`order[0].<TAB>`), inspect, detach | `uv run python examples/basic.py`       |
 | `threads.py`     | the single-shell lock — one shell, other threads pass through | `uv run python examples/threads.py`     |
 | `daemon_loop.py` | attach / detach / re-attach to a long-running process (use `--keep`) | `uv run python examples/daemon_loop.py` |
-| `many_containers.py` | **fan-in** — several "containers" dial out to one `ripdb-serve --keep` | `uv run python examples/many_containers.py` |
+| `many_containers.py` | **fan-in** — several "containers" dial out to one `reverse_ipdb-serve --keep` | `uv run python examples/many_containers.py` |
 | `madbg_example.py` | the **forward** alternative — [madbg](https://github.com/kmaork/madbg) (target listens, you connect in) | `uv run --with madbg python examples/madbg_example.py` |
 
 ## A full walkthrough (basic.py)
@@ -28,8 +28,8 @@ breakpoints are no-ops and the scripts simply print their results.
 Terminal 1:
 
 ```sh
-uv run ripdb-serve
-# *** ripdb listening on 0.0.0.0:4444 (one-shot) — Ctrl-C to quit
+uv run reverse_ipdb-serve
+# *** reverse_ipdb listening on 0.0.0.0:4444 (one-shot) — Ctrl-C to quit
 ```
 
 Terminal 2:
@@ -61,8 +61,8 @@ listener and run your own code:
 
 ```sh
 # on your host
-uv run ripdb-serve --port 4444
+uv run reverse_ipdb-serve --port 4444
 
-# inside the container (your app calls ripdb.set_trace())
+# inside the container (your app calls reverse_ipdb.set_trace())
 DEBUG_PORT=4444 python your_app.py
 ```

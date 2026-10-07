@@ -1,18 +1,18 @@
 """Tests for the public API surface: default routing and aliasing."""
 
-import ripdb
-from ripdb import api, pty_bridge
-from ripdb.debugger import DetachMixin, ReverseIPdb
+import reverse_ipdb
+from reverse_ipdb import api, pty_bridge
+from reverse_ipdb.debugger import DetachMixin, ReverseIPdb
 
 
 def test_set_trace_and_alias():
-    assert ripdb.set_trace is api.set_trace
-    assert ripdb.set_trace_ipython is ripdb.set_trace
+    assert reverse_ipdb.set_trace is api.set_trace
+    assert reverse_ipdb.set_trace_ipython is reverse_ipdb.set_trace
 
 
 def test_pdb_variant_is_gone():
     # The line-based pdb path was dropped; only IPython-over-pty remains.
-    assert not hasattr(ripdb, "set_trace_pdb")
+    assert not hasattr(reverse_ipdb, "set_trace_pdb")
 
 
 def test_set_trace_routes_to_pty_bridge(monkeypatch):
@@ -22,7 +22,7 @@ def test_set_trace_routes_to_pty_bridge(monkeypatch):
         lambda frame, host=None, port=None: captured.update(
             frame=frame, host=host, port=port),
     )
-    ripdb.set_trace(host="h.example", port=1234)
+    reverse_ipdb.set_trace(host="h.example", port=1234)
     assert captured["host"] == "h.example"
     assert captured["port"] == 1234
     assert hasattr(captured["frame"], "f_lineno")  # a real caller frame

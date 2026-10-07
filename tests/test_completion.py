@@ -14,12 +14,12 @@ import time
 # the completer evaluating the live object -- it cannot be a source echo.
 TARGET = textwrap.dedent(
     """
-    import ripdb
+    import reverse_ipdb
     class Thing: pass
     obj = Thing()
     setattr(obj, "".join(["z", "q", "z", "z", "m", "a", "r", "k"]), 42)
     def main():
-        ripdb.set_trace(host="127.0.0.1", port={port})   # pty + IPython (default)
+        reverse_ipdb.set_trace(host="127.0.0.1", port={port})   # pty + IPython (default)
         print("RESUMED")
     main()
     """
@@ -71,7 +71,7 @@ def test_dot_completion_and_clean_exit():
             if not b:
                 break
             banner += b
-        assert banner.decode().startswith("*** ripdb/pty"), banner
+        assert banner.decode().startswith("*** reverse_ipdb/pty"), banner
 
         # 2) send our terminal size, then wait for the prompt to come up
         conn.sendall(b"80 24\n")

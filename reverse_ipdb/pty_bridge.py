@@ -33,7 +33,7 @@ def _set_winsize(fd, cols, rows):
 def _read_size(sock):
     """Read the listener's ``"cols rows\\n"`` size line, or fall back to a default.
 
-    ripdb-serve sends it right after attaching; a plain socat/nc listener
+    reverse_ipdb-serve sends it right after attaching; a plain socat/nc listener
     won't, so we time out and use a sensible default.
     """
     sock.settimeout(SIZE_TIMEOUT)
@@ -124,7 +124,7 @@ def run(frame, host=None, port=None):
                 closer()
         release()
 
-    dbg._ripdb_close = close
+    dbg._reverse_ipdb_close = close
 
     # Pump bytes both ways; either EOF tears the whole bridge down.
     threading.Thread(

@@ -4,13 +4,13 @@ import socket
 import threading
 import time
 
-from ripdb import serve as serve_mod
+from reverse_ipdb import serve as serve_mod
 
 
 def test_read_banner_strips_tag_without_overreading():
     a, b = socket.socketpair()
     # Banner line followed immediately by debugger output on the same stream.
-    a.sendall(b"*** ripdb/pty host pid=1 thread=MainThread\n\x1b[?2004h(ipdb) ")
+    a.sendall(b"*** reverse_ipdb/pty host pid=1 thread=MainThread\n\x1b[?2004h(ipdb) ")
     ident = serve_mod._read_banner(b)
     assert ident == "host pid=1 thread=MainThread"
     # The bytes after the banner must still be readable (not consumed).
