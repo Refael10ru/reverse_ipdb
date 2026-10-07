@@ -96,6 +96,10 @@ Ruff enforces **PLC0415** (imports at the top of the file) — every import is
 at module top, no in-function imports. `import reverse_ipdb` therefore pulls in
 IPython/prompt_toolkit eagerly and requires POSIX (`termios`).
 
+**`hasattr` is banned in the library** (prefer EAFP / try-except). Ruff has no
+native check for it, so `tests/test_style.py` enforces it by AST-scanning
+`reverse_ipdb/*.py`; add banned builtins to its `BANNED_CALLS` set.
+
 ## Regression anchors (what the tests pin)
 
 - `tests/test_completion.py` — **echo-proof** dot-completion: an attribute name
