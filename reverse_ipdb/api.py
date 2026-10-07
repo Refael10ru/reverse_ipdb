@@ -13,8 +13,8 @@ POSIX only: the pty machinery (and so this package) imports ``termios``, so
 import os
 import sys
 
-from . import pty_bridge
-from .client import DOCKER_HOST
+from reverse_ipdb import pty_bridge
+from reverse_ipdb.client import DOCKER_HOST
 
 
 def set_trace(*, host=None, port=None, frame=None):
@@ -22,24 +22,47 @@ def set_trace(*, host=None, port=None, frame=None):
 
     IPython runs over a pseudo-terminal, so completion/history/colour work. No
     listener (or a shell already active elsewhere) -> no-op.
+
+    Args:
+        host: Hostname or IP of the listener to dial out to. When ``None``
+            (the default), it is resolved from the ``DEBUG_HOST`` environment
+            variable, falling back to ``host.docker.internal``.
+        port: TCP port of the listener. When ``None`` (the default), it is
+            resolved from the ``DEBUG_PORT`` environment variable, falling back
+            to ``4444``.
+        frame: The stack frame to stop in. When ``None`` (the default), the
+            caller's frame is used — i.e. execution pauses at the ``set_trace``
+            call site. Rarely passed explicitly.
     """
     pty_bridge.run(frame or sys._getframe(1), host=host, port=port)
 
 
-def docker_set_trace(*, host=None, port=None, frame=None):
+def docker_set_trace(*, host=None, port=None):
     """``set_trace()`` preconfigured for containers.
 
-    Identical to ``set_trace`` except the default host is the Docker
+    Identical to :func:`set_trace` except the host default is the Docker
     host-gateway name ``host.docker.internal``, which routes to the host
-    machine from inside a container. Resolution is still
-    **arg → DEBUG_HOST env → host.docker.internal**.
+    machine from inside a container.
 
     On Docker Desktop (macOS/Windows) the name resolves automatically; on Linux
     start the container with ``--add-host=host.docker.internal:host-gateway``
     (compose: ``extra_hosts``) so it maps to the host gateway.
+
+    Args:
+        host: Hostname or IP of the listener to dial out to. When ``None``
+            (the default), it is resolved from the ``DEBUG_HOST`` environment
+            variable, falling back to ``host.docker.internal`` (this is the
+            only behavioural difference from :func:`set_trace`).
+        port: TCP port of the listener. When ``None`` (the default), it is
+            resolved from the ``DEBUG_PORT`` environment variable, falling back
+            to ``4444``.
+
+    (There is no ``frame`` parameter: as a convenience preset this always stops
+    at its own call site. If you need to control the frame — a wrapper, a signal
+    handler, post-mortem — call :func:`set_trace` directly.)
     """
     host = host or os.environ.get("DEBUG_HOST") or DOCKER_HOST
-    set_trace(host=host, port=port, frame=frame or sys._getframe(1))
+    set_trace(host=host, port=port, frame=sys._getframe(1))
 
 
 # Explicit alias — IPython-over-pty is the only mode.

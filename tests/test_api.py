@@ -1,8 +1,16 @@
 """Tests for the public API surface: default routing and aliasing."""
 
+import inspect
+
 import reverse_ipdb
 from reverse_ipdb import api, pty_bridge
 from reverse_ipdb.debugger import DetachMixin, ReverseIPdb
+
+
+def test_frame_is_set_trace_only():
+    # `frame` is advanced plumbing; the docker preset must not expose it.
+    assert "frame" in inspect.signature(reverse_ipdb.set_trace).parameters
+    assert "frame" not in inspect.signature(reverse_ipdb.docker_set_trace).parameters
 
 
 def test_set_trace_and_alias():
