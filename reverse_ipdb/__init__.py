@@ -17,7 +17,7 @@ On your machine::
 No listener -> set_trace() is a no-op and the program keeps running.
 """
 
-from .api import set_trace, set_trace_ipython
+from .api import docker_set_trace, set_trace, set_trace_ipython
 
-__all__ = ["set_trace", "set_trace_ipython"]
+__all__ = ["set_trace", "set_trace_ipython", "docker_set_trace"]
 __version__ = "0.1.0"

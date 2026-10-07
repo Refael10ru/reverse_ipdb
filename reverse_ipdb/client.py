@@ -10,7 +10,12 @@ import os
 import socket
 import threading
 
-DEFAULT_HOST = "host.docker.internal"
+# The special name Docker maps to the host machine. Resolves automatically on
+# Docker Desktop (macOS/Windows); on Linux the container must be started with
+# --add-host=host.docker.internal:host-gateway (compose: extra_hosts).
+DOCKER_HOST = "host.docker.internal"
+
+DEFAULT_HOST = DOCKER_HOST
 DEFAULT_PORT = 4444
 CONNECT_TIMEOUT = 1.0
 

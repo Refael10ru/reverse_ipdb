@@ -49,6 +49,12 @@ reverse_ipdb.set_trace(host="10.0.0.5", port=4444)  # or set them explicitly
 `set_trace()` drops into the **IPython** debugger.
 (`reverse_ipdb.set_trace_ipython()` is an explicit alias.)
 
+Debugging from inside a container? Use `reverse_ipdb.docker_set_trace()` — the
+same thing but with the default host set to `host.docker.internal`, which
+routes to the host machine. On Docker Desktop that resolves automatically; on
+Linux start the container with `--add-host=host.docker.internal:host-gateway`
+(compose: `extra_hosts`).
+
 You get **real tab/dot-completion**, history and colour: `set_trace()` runs
 IPython's debugger over a pseudo-terminal, so `order.<TAB>` completes against
 the live frame — all computed on the target and rendered to your terminal.
@@ -162,7 +168,7 @@ For how these modules stack into layers and which guarantee each one owns, see
 
 ```
 reverse_ipdb/
-  __init__.py    public API re-exports (set_trace, set_trace_ipython)
+  __init__.py    public API re-exports (set_trace, set_trace_ipython, docker_set_trace)
   api.py         the entry points
   client.py      target side: resolve host/port, dial out, single-shell lock
   debugger.py    ReverseIPdb (IPython TerminalPdb) + detach-on-quit mixin

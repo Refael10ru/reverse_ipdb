@@ -37,6 +37,8 @@ The only surface callers touch.
 
 - `set_trace(*, host=None, port=None, frame=None)` — the IPython debugger
 - `set_trace_ipython` — explicit alias of `set_trace`
+- `docker_set_trace(*, …)` — `set_trace` with the default host set to
+  `host.docker.internal` (arg → `DEBUG_HOST` → that)
 
 **Responsibility:** be the entry point and nothing more. It grabs the caller's
 frame, guards non-POSIX (no `os.openpty` → no-op), and hands off to Layer 3

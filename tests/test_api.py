@@ -28,6 +28,28 @@ def test_set_trace_routes_to_pty_bridge(monkeypatch):
     assert hasattr(captured["frame"], "f_lineno")  # a real caller frame
 
 
+def test_docker_set_trace_defaults_to_docker_host(monkeypatch):
+    monkeypatch.delenv("DEBUG_HOST", raising=False)
+    captured = {}
+    monkeypatch.setattr(pty_bridge, "run",
+                        lambda frame, host=None, port=None: captured.update(host=host))
+    reverse_ipdb.docker_set_trace()
+    assert captured["host"] == "host.docker.internal"
+
+
+def test_docker_set_trace_respects_arg_then_env(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(pty_bridge, "run",
+                        lambda frame, host=None, port=None: captured.update(host=host))
+
+    monkeypatch.setenv("DEBUG_HOST", "10.0.0.5")
+    reverse_ipdb.docker_set_trace()
+    assert captured["host"] == "10.0.0.5"          # env beats the docker default
+
+    reverse_ipdb.docker_set_trace(host="1.2.3.4")
+    assert captured["host"] == "1.2.3.4"           # explicit arg wins
+
+
 def test_reverse_ipdb_detaches_on_quit():
     assert issubclass(ReverseIPdb, DetachMixin)
     assert ReverseIPdb.do_quit is DetachMixin.do_detach

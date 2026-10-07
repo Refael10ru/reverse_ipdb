@@ -17,9 +17,12 @@ socket. Built for code spread across many containers that you can't connect
 import reverse_ipdb
 reverse_ipdb.set_trace()          # IPython over a pty -> completion/history/colour
 reverse_ipdb.set_trace_ipython()  # explicit alias of set_trace()
+reverse_ipdb.docker_set_trace()   # like set_trace, default host = host.docker.internal
 ```
 
-Both accept the same keyword-only args and resolve **arg → env → default**:
+All accept the same keyword-only args and resolve **arg → env → default**
+(`docker_set_trace`'s default is `host.docker.internal`; on Linux start the
+container with `--add-host=host.docker.internal:host-gateway`):
 
 | arg    | env          | default                | meaning                         |
 |--------|--------------|------------------------|---------------------------------|
