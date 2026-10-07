@@ -25,7 +25,10 @@ def set_trace(*, host=None, port=None, frame=None):
     """
     if not hasattr(os, "openpty"):
         return
-    from . import pty_bridge
+    # Deferred: pty_bridge imports termios (POSIX-only), so a top-level import
+    # would break `import reverse_ipdb` on Windows, and it keeps the no-listener
+    # path from importing anything heavy.
+    from . import pty_bridge  # noqa: PLC0415
     pty_bridge.run(frame or sys._getframe(1), host=host, port=port)
 
 

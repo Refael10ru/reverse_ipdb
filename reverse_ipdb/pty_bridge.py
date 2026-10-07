@@ -76,8 +76,8 @@ def run(frame, host=None, port=None):
         return
     sock, release = dialed
 
-    # Import lazily so a failed/absent listener costs nothing.
-    from .debugger import ReverseIPdb
+    # Deferred: don't import IPython until a listener is actually reached.
+    from .debugger import ReverseIPdb  # noqa: PLC0415
 
     try:
         sock.sendall(client.banner().encode("utf-8"))
@@ -93,8 +93,9 @@ def run(frame, host=None, port=None):
     slave_out = os.fdopen(os.dup(slave_fd), "w", buffering=1, encoding="utf-8",
                           errors="replace")
 
-    from prompt_toolkit.input.vt100 import Vt100Input
-    from prompt_toolkit.output.vt100 import Vt100_Output
+    # Deferred: prompt_toolkit is only needed once a session is really starting.
+    from prompt_toolkit.input.vt100 import Vt100Input  # noqa: PLC0415
+    from prompt_toolkit.output.vt100 import Vt100_Output  # noqa: PLC0415
     pt_in = Vt100Input(slave_in)
     pt_out = Vt100_Output.from_pty(slave_out)
 

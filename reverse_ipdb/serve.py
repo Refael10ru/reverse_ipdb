@@ -18,9 +18,12 @@ import argparse
 import contextlib
 import os
 import queue
+import select
 import socket
 import sys
+import termios
 import threading
+import tty
 
 
 def _note(msg):
@@ -66,10 +69,6 @@ def _pump(conn):
     target's prompt_toolkit and its vt100 rendering comes straight back.
     Returns the instant the socket closes (clean detach, no extra keypress).
     """
-    import select
-    import termios
-    import tty
-
     cols, rows = _terminal_size()
     with contextlib.suppress(OSError):
         conn.sendall(f"{cols} {rows}\n".encode())

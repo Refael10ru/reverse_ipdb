@@ -92,6 +92,11 @@ uv run pytest -q        # tests
 CI (`.github/workflows/ci.yml`) runs all three on push/PR for Python 3.11–3.12.
 Keep the gate green.
 
+Ruff enforces **PLC0415** (imports at the top of the file). The only exceptions
+are the deferred imports in `api.py` / `pty_bridge.py` marked `# noqa: PLC0415`
+— they are load-bearing (a top-level `import termios`/IPython would break
+`import reverse_ipdb` on Windows and defeat the cheap no-op). Don't hoist them.
+
 ## Regression anchors (what the tests pin)
 
 - `tests/test_completion.py` — **echo-proof** dot-completion: an attribute name
